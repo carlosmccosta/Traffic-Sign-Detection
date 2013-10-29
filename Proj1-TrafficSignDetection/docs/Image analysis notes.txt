@@ -9,34 +9,33 @@ Pre-processing
 	- Correct lens distortions
 		- Geometric distortion
 		- Cromatic distortion
-	Reduce noise
+	+ Histogram equalization (equalizeHist - http://docs.opencv.org/doc/tutorials/imgproc/histograms/histogram_equalization/histogram_equalization.html#histogram-equalization)
+	+ Reduce noise (fastNlMeansDenoisingColored - http://docs.opencv.org/modules/photo/doc/denoising.html)
 		- Gaussian smothing
 		- Median filter
 		- Nagao-Matsuyama filter
 		- Kuwahara filter
-		- Anisotropic Diffusion Filtering
+		- Anisotropic Diffusion Filtering		
 		+ Bilateral filtering (bilateralFilter - http://docs.opencv.org/doc/tutorials/imgproc/gausian_median_blur_bilateral_filter/gausian_median_blur_bilateral_filter.html#smoothing)
 		- Frequency domain filtering
-	+ Increase contrast
+	+ Increase contrast (http://docs.opencv.org/doc/tutorials/core/basic_linear_transform/basic_linear_transform.html)
 	+ Correct brightness		
 
 
 Segmentation
 	+ Convert to HSV (cvtColor( src, hsv, CV_BGR2HSV ))
-	+ Isolate red regions (use hsv color space)
-	+ Histogram equalization (equalizeHist - http://docs.opencv.org/doc/tutorials/imgproc/histograms/histogram_equalization/histogram_equalization.html#histogram-equalization)
+	+ Isolate red regions (use hsv color space)	
 	- Extract edges (Canny - http://docs.opencv.org/doc/tutorials/imgproc/imgtrans/canny_detector/canny_detector.html#canny-detector)
 	+ Detect circles with help of hough transform (HoughCircles - http://docs.opencv.org/doc/tutorials/imgproc/imgtrans/hough_circle/hough_circle.html#hough-circle)
 	+ Isolate possible sign blobs and resise then
 	- Use ransac algorithm to extract lines from a group of points
 	- Correct feature points variation with Mahalanobis distance
-	+ Traffic sign numbers
-		+ Threshold to binarize image
-		+ Use opening (erode + dilate) morphological operation (http://docs.opencv.org/doc/tutorials/imgproc/erosion_dilatation/erosion_dilatation.html#morphology-1)
 
 
 Speed limit recognition
-	+ Extract characters
+	+ Traffic sign numbers
+		+ Threshold to binarize image
+		+ Use opening (erode + dilate) morphological operation (http://docs.opencv.org/doc/tutorials/imgproc/erosion_dilatation/erosion_dilatation.html#morphology-1)
 		+ Bounding boxes (boundRect - http://docs.opencv.org/doc/tutorials/imgproc/shapedescriptors/bounding_rects_circles/bounding_rects_circles.html#bounding-rects-circles)
 		- convexHull (http://docs.opencv.org/doc/tutorials/imgproc/shapedescriptors/hull/hull.html#hull)
 	+ Template matching (http://docs.opencv.org/doc/tutorials/imgproc/histograms/template_matching/template_matching.html#template-matching)
