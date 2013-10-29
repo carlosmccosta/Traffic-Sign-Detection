@@ -9,6 +9,7 @@
 using std::string;
 using std::vector;
 using cv::Mat;
+using cv::Scalar;
 using cv::imread;
 using cv::VideoCapture;
 using cv::waitKey;
@@ -22,6 +23,8 @@ using cv::resizeWindow;
 #define WINDOW_NAME_HISTOGRAM_EQUALIZATION "1. Histogram equalization"
 #define WINDOW_NAME_BILATERAL_FILTER "2. Bilateral filter"
 #define WINDOW_NAME_CONTRAST_AND_BRIGHTNESS "3. Contrast and brightness"
+#define WINDOW_NAME_COLOR_SEGMENTATION "4. Color segmentation"
+#define WINDOW_NAME_COLOR_SEGMENTATION_OPTIONS "4.1. Color segmentation configuration"
 
 
 #define	WINDOW_HEADER_HEIGHT 32
@@ -32,16 +35,26 @@ class ImageAnalysis {
 	private:
 		vector<string> detectedSigns;
 		Mat originalImage;
+		bool useCVHiGUI;
 
 		int frameRate;
 		int screenWidth;
 		int screenHeight;
 
 
+		int colorSegmentationLowerHue;
+		int colorSegmentationUpperHue;
+		int colorSegmentationLowerSaturation;
+		int colorSegmentationUpperSaturation;
+		int colorSegmentationLowerValue;				
+		int colorSegmentationUpperValue;
+
+
 	public:
-		ImageAnalysis() : frameRate(30), screenWidth(1920), screenHeight(1080) {};
+		ImageAnalysis();
 		virtual ~ImageAnalysis() {}
 		
+		bool updateImage();
 		bool processImage(string path, bool useCVHighGUI = true);
 		bool processImage(Mat& image, bool useCVHighGUI = true);	
 		

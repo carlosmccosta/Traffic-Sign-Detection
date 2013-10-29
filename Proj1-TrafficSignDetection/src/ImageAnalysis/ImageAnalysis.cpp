@@ -1,10 +1,22 @@
 #include "ImageAnalysis.h"
 
 
+ImageAnalysis::ImageAnalysis() :
+	frameRate(30), screenWidth(1920), screenHeight(1080),
+	colorSegmentationLowerHue(140), colorSegmentationUpperHue(210),
+	colorSegmentationLowerSaturation(32), colorSegmentationUpperSaturation(200),
+	colorSegmentationLowerValue(32), colorSegmentationUpperValue(255) {};
+
+
+void udpateImageAnalysis(int position, void* userData) {
+	ImageAnalysis* imgAnalysis = ((ImageAnalysis*)userData);
+	imgAnalysis->updateImage();
+}
 
 bool ImageAnalysis::processImage(Mat& image, bool useCVHighGUI) {
 	detectedSigns.clear();
 	originalImage = image.clone();
+	useCVHiGUI = useCVHighGUI;
 
 	if (useCVHighGUI) {
 		setupMainWindow();
@@ -13,6 +25,7 @@ bool ImageAnalysis::processImage(Mat& image, bool useCVHighGUI) {
 	}
 
 	preprocessImage(image, useCVHighGUI);
+	segmentImage(image, useCVHighGUI);
 
 
 	if (useCVHighGUI) {
@@ -31,20 +44,33 @@ void ImageAnalysis::preprocessImage(Mat& image, bool useCVHighGUI ) {
 	cv::split(image, channels);
 	cv::equalizeHist(channels[0], channels[0]);
 	cv::merge(channels, image);
-	cvtColor(image, image, CV_YCrCb2BGR);
-	imshow(WINDOW_NAME_HISTOGRAM_EQUALIZATION, image);
+	cvtColor(image, image, CV_YCrCb2BGR);	
+	if (useCVHighGUI) {
+		imshow(WINDOW_NAME_HISTOGRAM_EQUALIZATION, image);
+	}
 
 	// remove noise with bilateral filter
 	cv::bilateralFilter(originalImage, image, 9, 50, 10);		
-	imshow(WINDOW_NAME_BILATERAL_FILTER, image);
+	if (useCVHighGUI) {
+		imshow(WINDOW_NAME_BILATERAL_FILTER, image);
+	}
 
 	// increase contrast and brightness to improve detection of numbers inside traffic sign
-	image.convertTo(image, -1, 1.5, 20);
-	imshow(WINDOW_NAME_CONTRAST_AND_BRIGHTNESS, image);	
+	image.convertTo(image, -1, 1.2, 5);
+	if (useCVHighGUI) {
+		imshow(WINDOW_NAME_CONTRAST_AND_BRIGHTNESS, image);	
+	}
 }
 
 void ImageAnalysis::segmentImage(Mat& image, bool useCVHighGUI) {
-
+	// color segmentation	
+	cvtColor(image, image, CV_BGR2HSV);
+	Mat colorSegmentation;	
+	cv::inRange(image, Scalar(colorSegmentationLowerHue, colorSegmentationLowerSaturation, colorSegmentationLowerValue), Scalar(colorSegmentationUpperHue, colorSegmentationUpperSaturation, colorSegmentationUpperValue), colorSegmentation);		
+	cvtColor(image, image, CV_HSV2BGR);
+	if (useCVHighGUI) {
+		imshow(WINDOW_NAME_COLOR_SEGMENTATION, colorSegmentation);
+	}
 }
 
 void ImageAnalysis::recognizeTrafficSigns(Mat& image, bool useCVHighGUI) {
@@ -54,6 +80,9 @@ void ImageAnalysis::recognizeTrafficSigns(Mat& image, bool useCVHighGUI) {
 
 
 
+bool ImageAnalysis::updateImage() {
+	return processImage(originalImage, useCVHiGUI);
+}
 
 
 bool ImageAnalysis::processImage(string path, bool useCVHighGUI) {		
@@ -143,7 +172,20 @@ void ImageAnalysis::setupMainWindow() {
 void ImageAnalysis::setupResultsWindows() {
 	addWindow(1, 0, WINDOW_NAME_HISTOGRAM_EQUALIZATION);
 	addWindow(2, 0, WINDOW_NAME_BILATERAL_FILTER);
-	addWindow(3, 0, WINDOW_NAME_CONTRAST_AND_BRIGHTNESS);	
+	addWindow(3, 0, WINDOW_NAME_CONTRAST_AND_BRIGHTNESS);
+	
+	addWindow(0, 1, WINDOW_NAME_COLOR_SEGMENTATION);
+
+	/*namedWindow(WINDOW_NAME_COLOR_SEGMENTATION_OPTIONS, CV_WINDOW_AUTOSIZE | CV_WINDOW_KEEPRATIO | CV_GUI_EXPANDED);
+	moveWindow(WINDOW_NAME_COLOR_SEGMENTATION_OPTIONS, screenWidth / 2, screenHeight / 2);*/
+	/*addWindow(1, 1, WINDOW_NAME_COLOR_SEGMENTATION_OPTIONS);*/
+	cv::createTrackbar("mHue", WINDOW_NAME_COLOR_SEGMENTATION_OPTIONS, &colorSegmentationLowerHue, 360, udpateImageAnalysis, (void*)this);
+	cv::createTrackbar("MHue", WINDOW_NAME_COLOR_SEGMENTATION_OPTIONS, &colorSegmentationUpperHue, 360, udpateImageAnalysis, (void*)this);
+	cv::createTrackbar("mSat", WINDOW_NAME_COLOR_SEGMENTATION_OPTIONS, &colorSegmentationLowerSaturation, 255, udpateImageAnalysis, (void*)this);
+	cv::createTrackbar("MSat", WINDOW_NAME_COLOR_SEGMENTATION_OPTIONS, &colorSegmentationUpperSaturation, 255, udpateImageAnalysis, (void*)this);
+	cv::createTrackbar("mVal", WINDOW_NAME_COLOR_SEGMENTATION_OPTIONS, &colorSegmentationLowerValue, 255, udpateImageAnalysis, (void*)this);
+	cv::createTrackbar("MVal", WINDOW_NAME_COLOR_SEGMENTATION_OPTIONS, &colorSegmentationUpperValue, 255, udpateImageAnalysis, (void*)this);
+	addWindow(1, 1, WINDOW_NAME_COLOR_SEGMENTATION_OPTIONS);
 }
 
 
