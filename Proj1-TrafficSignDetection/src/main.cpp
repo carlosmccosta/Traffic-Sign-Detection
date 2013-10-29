@@ -6,7 +6,7 @@ int main(int argc, char** argv) {
 	CLI userInterface;
 	userInterface.startInteractiveCLI();
 
-	// gui
+	// qt gui
 
 	return 0;
 }

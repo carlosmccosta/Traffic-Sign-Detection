@@ -1,13 +1,19 @@
 #pragma once
 
-#include "ConsoleInput.h"
 #include <iostream>
+#include <string>
+
+#include "ConsoleInput.h"
+#include "../ImageAnalysis/ImageAnalysis.h"
 
 using std::count;
+using std::cerr;
+using std::string;
 
 class CLI {
 	private:
-	
+		string filename;
+		int cameraDeviceNumber;
 
 	public:
 		CLI() {}
@@ -16,7 +22,7 @@ class CLI {
 		void startInteractiveCLI();
 		void showConsoleHeader();
 		int getUserOption();
-
+		
 		void showVersion();
 };
 

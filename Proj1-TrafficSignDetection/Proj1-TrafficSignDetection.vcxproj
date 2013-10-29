@@ -11,8 +11,8 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{6948F96D-2BA2-493F-B81B-A95EBA1D9775}</ProjectGuid>
-    <RootNamespace>Proj1TraficSignDetection</RootNamespace>
+    <ProjectGuid>{6636EF59-E41A-41C1-9BF0-43B77D0BC72E}</ProjectGuid>
+    <RootNamespace>Proj1TrafficSignDetection</RootNamespace>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -70,13 +70,15 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="src\CLI\CLI.h" />
-    <ClInclude Include="src\CLI\ConsoleInput.h" />
-  </ItemGroup>
-  <ItemGroup>
     <ClCompile Include="src\CLI\CLI.cpp" />
     <ClCompile Include="src\CLI\ConsoleInput.cpp" />
+    <ClCompile Include="src\ImageAnalysis\ImageAnalysis.cpp" />
     <ClCompile Include="src\main.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\CLI\CLI.h" />
+    <ClInclude Include="src\CLI\ConsoleInput.h" />
+    <ClInclude Include="src\ImageAnalysis\ImageAnalysis.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include=".gitattributes" />
