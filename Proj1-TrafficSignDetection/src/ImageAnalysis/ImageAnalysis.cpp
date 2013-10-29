@@ -1,10 +1,5 @@
 #include "ImageAnalysis.h"
 
-
-ImageAnalysis::~ImageAnalysis() {
-	cv::destroyAllWindows();
-}
-
 bool ImageAnalysis::processImage(string path, bool useCVHighGUI) {		
 	Mat imageToProcess;
 	if (path != "") {
@@ -30,8 +25,7 @@ bool ImageAnalysis::processImage(Mat image, bool useCVHighGUI) {
 	
 	if (useCVHighGUI) {
 		setupMainWindow();
-		imshow(NAME_MAIN_WINDOW, originalImage);
-		waitKey(0);
+		imshow(NAME_MAIN_WINDOW, originalImage);		
 	}
 
 	detectedSigns.clear();
@@ -39,6 +33,10 @@ bool ImageAnalysis::processImage(Mat image, bool useCVHighGUI) {
 
 	if (useCVHighGUI) {
 		outputResults();
+
+		if (waitKey(0) == ESC_KEYCODE) {
+			cv::destroyAllWindows();
+		}
 	}
 
 	return true;
@@ -90,10 +88,14 @@ bool ImageAnalysis::processVideo(VideoCapture videoCapture, bool useCVHighGUI) {
 			outputResults();
 		}
 
-		waitKey(millisecPollingInterval);
+		if (waitKey(millisecPollingInterval) == ESC_KEYCODE) {
+			break;
+		}
 	}
 
-	waitKey(0);
+	if (useCVHighGUI) {
+		cv::destroyAllWindows();
+	}
 
 	return true;
 }

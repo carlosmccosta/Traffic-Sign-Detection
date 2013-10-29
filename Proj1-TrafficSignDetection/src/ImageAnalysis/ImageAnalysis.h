@@ -18,7 +18,7 @@ using cv::moveWindow;
 
 
 #define NAME_MAIN_WINDOW "Image source"
-
+#define ESC_KEYCODE 27
 
 class ImageAnalysis {
 	private:
@@ -30,7 +30,7 @@ class ImageAnalysis {
 
 	public:
 		ImageAnalysis() : frameRate(30) {};
-		virtual ~ImageAnalysis();
+		virtual ~ImageAnalysis() {}
 		
 		bool processImage(string path, bool useCVHighGUI = true);
 		bool processImage(Mat image, bool useCVHighGUI = true);	
