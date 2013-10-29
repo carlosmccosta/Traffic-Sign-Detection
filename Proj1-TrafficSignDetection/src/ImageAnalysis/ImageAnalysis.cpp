@@ -2,10 +2,20 @@
 
 
 ImageAnalysis::ImageAnalysis() :
+	useCVHiGUI(true), windowsInitialized(false),
 	frameRate(30), screenWidth(1920), screenHeight(1080),
+	bilateralFilterDistance(9), bilateralFilterSigmaColor(50), bilateralFilterSigmaSpace(10),
+	contrast(12), breightness(50),
 	colorSegmentationLowerHue(140), colorSegmentationUpperHue(210),
-	colorSegmentationLowerSaturation(32), colorSegmentationUpperSaturation(200),
+	colorSegmentationLowerSaturation(32), colorSegmentationUpperSaturation(255),
 	colorSegmentationLowerValue(32), colorSegmentationUpperValue(255) {};
+
+
+ImageAnalysis::~ImageAnalysis() {
+	if (useCVHiGUI) {
+		cv::destroyAllWindows();
+	}
+}
 
 
 void udpateImageAnalysis(int position, void* userData) {
@@ -16,12 +26,16 @@ void udpateImageAnalysis(int position, void* userData) {
 bool ImageAnalysis::processImage(Mat& image, bool useCVHighGUI) {
 	detectedSigns.clear();
 	originalImage = image.clone();
-	useCVHiGUI = useCVHighGUI;
+	useCVHiGUI = useCVHighGUI;		
+	
+	if (useCVHighGUI) {		
+		if (!windowsInitialized) {
+			setupMainWindow();
+			setupResultsWindows();
+			windowsInitialized = true;
+		}		
 
-	if (useCVHighGUI) {
-		setupMainWindow();
-		imshow(WINDOW_NAME_MAIN, originalImage);
-		setupResultsWindows();
+		imshow(WINDOW_NAME_MAIN, originalImage);		
 	}
 
 	preprocessImage(image, useCVHighGUI);
@@ -42,7 +56,7 @@ void ImageAnalysis::preprocessImage(Mat& image, bool useCVHighGUI ) {
 	cvtColor(image, image, CV_BGR2YCrCb);
 	vector<Mat> channels;
 	cv::split(image, channels);
-	cv::equalizeHist(channels[0], channels[0]);
+	cv::equalizeHist(channels[0], channels[0]);	
 	cv::merge(channels, image);
 	cvtColor(image, image, CV_YCrCb2BGR);	
 	if (useCVHighGUI) {
@@ -50,13 +64,13 @@ void ImageAnalysis::preprocessImage(Mat& image, bool useCVHighGUI ) {
 	}
 
 	// remove noise with bilateral filter
-	cv::bilateralFilter(originalImage, image, 9, 50, 10);		
+	cv::bilateralFilter(image.clone(), image, bilateralFilterDistance, bilateralFilterSigmaColor, bilateralFilterSigmaSpace);
 	if (useCVHighGUI) {
 		imshow(WINDOW_NAME_BILATERAL_FILTER, image);
 	}
 
 	// increase contrast and brightness to improve detection of numbers inside traffic sign
-	image.convertTo(image, -1, 1.2, 5);
+	image.convertTo(image, -1, (double)contrast / 10.0, (double)breightness / 10.0);
 	if (useCVHighGUI) {
 		imshow(WINDOW_NAME_CONTRAST_AND_BRIGHTNESS, image);	
 	}
@@ -81,7 +95,7 @@ void ImageAnalysis::recognizeTrafficSigns(Mat& image, bool useCVHighGUI) {
 
 
 bool ImageAnalysis::updateImage() {
-	return processImage(originalImage, useCVHiGUI);
+	return processImage(originalImage.clone(), useCVHiGUI);
 }
 
 
@@ -100,10 +114,12 @@ bool ImageAnalysis::processImage(string path, bool useCVHighGUI) {
 	} else {		
 		return false;
 	}
-	
+
+	useCVHiGUI = useCVHighGUI;	
+	windowsInitialized = false;
 	bool status = processImage(imageToProcess, useCVHighGUI);	
 
-	if (waitKey(0) == ESC_KEYCODE) {
+	if (waitKey(0) == ESC_KEYCODE && useCVHighGUI) {
 		cv::destroyAllWindows();
 	}
 
@@ -142,12 +158,14 @@ bool ImageAnalysis::processVideo(VideoCapture videoCapture, bool useCVHighGUI) {
 		return false;
 	}
 
+	useCVHiGUI = useCVHighGUI;
+	windowsInitialized = false;
+
 	int millisecPollingInterval = 1000 / frameRate;
 	if (millisecPollingInterval < 10)
 		millisecPollingInterval = 10;
 	
-	Mat currentFrame;
-
+	Mat currentFrame;	
 	while (videoCapture.read(currentFrame)) {
 		processImage(currentFrame, useCVHighGUI);
 		
@@ -164,35 +182,40 @@ bool ImageAnalysis::processVideo(VideoCapture videoCapture, bool useCVHighGUI) {
 }
 
 
-void ImageAnalysis::setupMainWindow() {	
+void ImageAnalysis::setupMainWindow() {
 	addWindow(0, 0, WINDOW_NAME_MAIN);
 }
 
 
 void ImageAnalysis::setupResultsWindows() {
 	addWindow(1, 0, WINDOW_NAME_HISTOGRAM_EQUALIZATION);
-	addWindow(2, 0, WINDOW_NAME_BILATERAL_FILTER);
-	addWindow(3, 0, WINDOW_NAME_CONTRAST_AND_BRIGHTNESS);
 	
-	addWindow(0, 1, WINDOW_NAME_COLOR_SEGMENTATION);
+	addWindow(2, 0, WINDOW_NAME_BILATERAL_FILTER);
+	addWindow(3, 0, WINDOW_NAME_BILATERAL_FILTER_OPTIONS);
+	cv::createTrackbar("Dist", WINDOW_NAME_BILATERAL_FILTER_OPTIONS, &bilateralFilterDistance, 100, udpateImageAnalysis, (void*)this);
+	cv::createTrackbar("Color Sig", WINDOW_NAME_BILATERAL_FILTER_OPTIONS, &bilateralFilterSigmaColor, 200, udpateImageAnalysis, (void*)this);
+	cv::createTrackbar("Space Sig", WINDOW_NAME_BILATERAL_FILTER_OPTIONS, &bilateralFilterSigmaSpace, 200, udpateImageAnalysis, (void*)this);
+	
+	addWindow(0, 1, WINDOW_NAME_CONTRAST_AND_BRIGHTNESS);
+	addWindow(1, 1, WINDOW_NAME_CONTRAST_AND_BRIGHTNESS_OPTIONS);
+	cv::createTrackbar("Contr / 10", WINDOW_NAME_CONTRAST_AND_BRIGHTNESS_OPTIONS, &contrast, 100, udpateImageAnalysis, (void*)this);
+	cv::createTrackbar("Brigh / 10", WINDOW_NAME_CONTRAST_AND_BRIGHTNESS_OPTIONS, &breightness, 1000, udpateImageAnalysis, (void*)this);
 
-	/*namedWindow(WINDOW_NAME_COLOR_SEGMENTATION_OPTIONS, CV_WINDOW_AUTOSIZE | CV_WINDOW_KEEPRATIO | CV_GUI_EXPANDED);
-	moveWindow(WINDOW_NAME_COLOR_SEGMENTATION_OPTIONS, screenWidth / 2, screenHeight / 2);*/
-	/*addWindow(1, 1, WINDOW_NAME_COLOR_SEGMENTATION_OPTIONS);*/
-	cv::createTrackbar("mHue", WINDOW_NAME_COLOR_SEGMENTATION_OPTIONS, &colorSegmentationLowerHue, 360, udpateImageAnalysis, (void*)this);
-	cv::createTrackbar("MHue", WINDOW_NAME_COLOR_SEGMENTATION_OPTIONS, &colorSegmentationUpperHue, 360, udpateImageAnalysis, (void*)this);
-	cv::createTrackbar("mSat", WINDOW_NAME_COLOR_SEGMENTATION_OPTIONS, &colorSegmentationLowerSaturation, 255, udpateImageAnalysis, (void*)this);
-	cv::createTrackbar("MSat", WINDOW_NAME_COLOR_SEGMENTATION_OPTIONS, &colorSegmentationUpperSaturation, 255, udpateImageAnalysis, (void*)this);
-	cv::createTrackbar("mVal", WINDOW_NAME_COLOR_SEGMENTATION_OPTIONS, &colorSegmentationLowerValue, 255, udpateImageAnalysis, (void*)this);
-	cv::createTrackbar("MVal", WINDOW_NAME_COLOR_SEGMENTATION_OPTIONS, &colorSegmentationUpperValue, 255, udpateImageAnalysis, (void*)this);
-	addWindow(1, 1, WINDOW_NAME_COLOR_SEGMENTATION_OPTIONS);
+	addWindow(2, 1, WINDOW_NAME_COLOR_SEGMENTATION);	
+	addWindow(3, 1, WINDOW_NAME_COLOR_SEGMENTATION_OPTIONS);
+	cv::createTrackbar("Min Hue", WINDOW_NAME_COLOR_SEGMENTATION_OPTIONS, &colorSegmentationLowerHue, 360, udpateImageAnalysis, (void*)this);
+	cv::createTrackbar("Max Hue", WINDOW_NAME_COLOR_SEGMENTATION_OPTIONS, &colorSegmentationUpperHue, 360, udpateImageAnalysis, (void*)this);
+	cv::createTrackbar("Min Sat", WINDOW_NAME_COLOR_SEGMENTATION_OPTIONS, &colorSegmentationLowerSaturation, 255, udpateImageAnalysis, (void*)this);
+	cv::createTrackbar("Max Sat", WINDOW_NAME_COLOR_SEGMENTATION_OPTIONS, &colorSegmentationUpperSaturation, 255, udpateImageAnalysis, (void*)this);
+	cv::createTrackbar("Min Val", WINDOW_NAME_COLOR_SEGMENTATION_OPTIONS, &colorSegmentationLowerValue, 255, udpateImageAnalysis, (void*)this);
+	cv::createTrackbar("Max Val", WINDOW_NAME_COLOR_SEGMENTATION_OPTIONS, &colorSegmentationUpperValue, 255, udpateImageAnalysis, (void*)this);	
 }
 
 
 void ImageAnalysis::addWindow(int column, int row, string name, int numberColumns, int numberRows) {
 	namedWindow(name, CV_WINDOW_NORMAL | CV_WINDOW_KEEPRATIO | CV_GUI_EXPANDED);	
 	
-	int height = screenHeight / numberRows;
+	int height = screenHeight / numberRows - WINDOW_FRAME_THICKNESS - WINDOW_HEADER_HEIGHT;
 	int width = originalImage.size().width * height / originalImage.size().height;
 
 	if (width * numberColumns > screenWidth) {		
@@ -216,9 +239,7 @@ void ImageAnalysis::addWindow(int column, int row, string name, int numberColumn
 }
 
 
-bool ImageAnalysis::outputResults() {
-	setupResultsWindows();
-
+bool ImageAnalysis::outputResults() {	
 	return true;
 }
 
