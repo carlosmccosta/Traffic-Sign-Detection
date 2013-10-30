@@ -9,7 +9,9 @@ Pre-processing
 	- Correct lens distortions
 		- Geometric distortion
 		- Cromatic distortion
-	+ Histogram equalization (equalizeHist - http://docs.opencv.org/doc/tutorials/imgproc/histograms/histogram_equalization/histogram_equalization.html#histogram-equalization)
+	+ Histogram equalization
+		+ equalizeHist - http://docs.opencv.org/doc/tutorials/imgproc/histograms/histogram_equalization/histogram_equalization.html#histogram-equalization
+		+ Contrast Limited Adaptive Histogram Equalization  - CLAHE
 	+ Reduce noise (fastNlMeansDenoisingColored - http://docs.opencv.org/modules/photo/doc/denoising.html)
 		- Gaussian smothing
 		- Median filter

@@ -84,6 +84,24 @@
     <None Include=".gitattributes" />
     <None Include=".gitignore" />
   </ItemGroup>
+  <ItemGroup>
+    <Image Include="imgs\hsv\hsv.png" />
+    <Image Include="imgs\hsv\hsv360_v0.0.jpg" />
+    <Image Include="imgs\hsv\hsv360_v0.1.jpg" />
+    <Image Include="imgs\hsv\hsv360_v0.2.jpg" />
+    <Image Include="imgs\hsv\hsv360_v0.3.jpg" />
+    <Image Include="imgs\hsv\hsv360_v0.4.jpg" />
+    <Image Include="imgs\hsv\hsv360_v0.5.jpg" />
+    <Image Include="imgs\hsv\hsv360_v0.6.jpg" />
+    <Image Include="imgs\hsv\hsv360_v0.7.jpg" />
+    <Image Include="imgs\hsv\hsv360_v0.8.jpg" />
+    <Image Include="imgs\hsv\hsv360_v0.9.jpg" />
+    <Image Include="imgs\hsv\hsv360_v1.0.jpg" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="docs\Image analysis notes.txt" />
+    <Text Include="docs\Visual Studio configuration for OpenCV 2.4.6.txt" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
