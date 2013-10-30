@@ -1,6 +1,7 @@
 #include "CLI.h"
 
 
+// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>  <Commnd line user interface>  <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 void CLI::showConsoleHeader() {		
 	cout << "####################################################################################################\n";
 	cout << "  >>>                                    Traffic sign detection                                <<<  \n";
@@ -10,6 +11,8 @@ void CLI::showConsoleHeader() {
 
 void CLI::startInteractiveCLI() {
 	int userOption = 0;
+	string filename = "";
+	int cameraDeviceNumber = 0;
 
 	do {
 		ConsoleInput::getInstance()->clearConsoleScreen();
@@ -72,8 +75,7 @@ void CLI::startInteractiveCLI() {
 }
 
 
-
-int CLI::getUserOption() {	
+int CLI::getUserOption() {
 	cout << " ## Detect traffic sign from:\n";
 	cout << "   1 - Image\n";
 	cout << "   2 - Video\n";
@@ -90,3 +92,4 @@ void CLI::showVersion() {
 	cout << "|  Author: Carlos Miguel Correia da Costa (carlos.costa@fe.up.pt / carloscosta.cmcc@gmail.com)     |" << endl;
 	cout << "+==================================================================================================+" << endl;
 }
+// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>  </Commnd line user interface>  <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<

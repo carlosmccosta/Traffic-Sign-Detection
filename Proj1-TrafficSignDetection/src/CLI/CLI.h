@@ -10,11 +10,8 @@ using std::count;
 using std::cerr;
 using std::string;
 
-class CLI {
-	private:
-		string filename;
-		int cameraDeviceNumber;
 
+class CLI {
 	public:
 		CLI() {}
 		virtual ~CLI() {}
@@ -25,4 +22,3 @@ class CLI {
 		
 		void showVersion();
 };
-

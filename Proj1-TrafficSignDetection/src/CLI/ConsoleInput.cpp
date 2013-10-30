@@ -1,15 +1,13 @@
 #include "ConsoleInput.h"
 
-ConsoleInput::ConsoleInput() {
-}
-ConsoleInput::~ConsoleInput() {
-}
 
+// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>  <Console input library>  <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 void ConsoleInput::getUserInput() {
 	cout << "Press ENTER to continue..." << endl;
 	string temp;
 	getline(cin, temp);
 }
+
 
 string ConsoleInput::getLineCin() {
 	string input;
@@ -20,6 +18,7 @@ string ConsoleInput::getLineCin() {
 	return input;
 }
 
+
 void ConsoleInput::clearConsoleScreen() {
 	for (size_t i = 0; i < 80; ++i) {
 		cout << "\n";
@@ -27,6 +26,7 @@ void ConsoleInput::clearConsoleScreen() {
 	
 	cout << endl;
 }
+
 
 int ConsoleInput::getIntCin(const char* message, const char* errorMessage, int min, int size) {
 	int number;
@@ -49,6 +49,7 @@ int ConsoleInput::getIntCin(const char* message, const char* errorMessage, int m
 	
 	return number;
 }
+
 
 bool ConsoleInput::getYesNoCin(const char* message, const char* errorMessage) {
 	bool stop = false;
@@ -74,6 +75,7 @@ bool ConsoleInput::getYesNoCin(const char* message, const char* errorMessage) {
 	return stop;
 }
 
+
 ConsoleInput* ConsoleInput::getInstance() {
 	if (instance == NULL) {
 		instance = new ConsoleInput();
@@ -84,8 +86,10 @@ ConsoleInput* ConsoleInput::getInstance() {
 
 ConsoleInput* ConsoleInput::instance = NULL;
 
+
 void ConsoleInput::flushStandardInput() {
 	cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 //	cin.clear();
 //	cin.sync();
 }
+// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>  </Console input library>  <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<

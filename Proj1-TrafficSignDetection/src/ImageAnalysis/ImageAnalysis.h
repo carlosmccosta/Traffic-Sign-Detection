@@ -28,12 +28,36 @@ using cv::resizeWindow;
 #define WINDOW_NAME_COLOR_SEGMENTATION "4. Color segmentation"
 #define WINDOW_NAME_COLOR_SEGMENTATION_OPTIONS "4.1. Color segmentation configuration"
 
-
 #define	WINDOW_HEADER_HEIGHT 32
 #define WINDOW_FRAME_THICKNESS 8
 #define ESC_KEYCODE 27
 
+
 class ImageAnalysis {
+	public:
+		ImageAnalysis();
+		virtual ~ImageAnalysis();
+				
+		bool processImage(string path, bool useCVHighGUI = true);
+		bool processImage(Mat& image, bool useCVHighGUI = true);
+
+		void preprocessImage(Mat& image, bool useCVHighGUI = true);
+		void segmentImage(Mat& image, bool useCVHighGUI = true);
+		void recognizeTrafficSigns(Mat& image, bool useCVHighGUI = true);
+
+		bool updateImage();
+		
+		bool processVideo(string path, bool useCVHighGUI = true);
+		bool processVideo(int cameraDeviceNumber, bool useCVHighGUI = true);
+		bool processVideo(VideoCapture videoCapture, bool useCVHighGUI = true);
+		
+		void setupMainWindow();
+		void setupResultsWindows();
+		bool outputResults();		
+
+		void addHighGUIWindow(int column, int row, string windowName, int numberColumns = 4, int numberRows = 2);
+
+
 	private:
 		vector<string> detectedSigns;
 		Mat originalImage;
@@ -49,7 +73,7 @@ class ImageAnalysis {
 		int bilateralFilterSigmaSpace;
 
 		int contrast;
-		int breightness;
+		int brightness;
 
 		int colorSegmentationLowerHue;
 		int colorSegmentationUpperHue;
@@ -57,30 +81,4 @@ class ImageAnalysis {
 		int colorSegmentationUpperSaturation;
 		int colorSegmentationLowerValue;				
 		int colorSegmentationUpperValue;
-
-
-	public:
-		ImageAnalysis();
-		virtual ~ImageAnalysis();
-		
-		bool updateImage();
-		bool processImage(string path, bool useCVHighGUI = true);
-		bool processImage(Mat& image, bool useCVHighGUI = true);	
-		
-		bool processVideo(string path, bool useCVHighGUI = true);
-		bool processVideo(int cameraDeviceNumber, bool useCVHighGUI = true);
-		bool processVideo(VideoCapture videoCapture, bool useCVHighGUI = true);
-		
-		void setupMainWindow();
-		void setupResultsWindows();
-		bool outputResults();
-
-
-		void preprocessImage(Mat& image, bool useCVHighGUI = true);
-		void segmentImage(Mat& image, bool useCVHighGUI = true);
-		void recognizeTrafficSigns(Mat& image, bool useCVHighGUI = true);
-
-		void addWindow(int column, int row, string name, int numberColumns = 4, int numberRows = 2);
-
 };
-
