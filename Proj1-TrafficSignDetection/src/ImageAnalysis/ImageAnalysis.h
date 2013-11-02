@@ -12,6 +12,8 @@ using std::vector;
 using std::map;
 using std::pair;
 using cv::Mat;
+using cv::Rect;
+using cv::RotatedRect;
 using cv::Scalar;
 using cv::Vec3f;
 using cv::Point;
@@ -24,6 +26,7 @@ using cv::moveWindow;
 using cv::resizeWindow;
 using cv::circle;
 
+#define PARAM_FIT_ELLIPSIS_SCALE_FOR_HOUGH_CIRCLE 1.50
 
 #define WINDOW_NAME_MAIN "0. Original image"
 #define WINDOW_NAME_OPTIONS "Parameterization"
@@ -87,10 +90,11 @@ class ImageAnalysis {
 		Mat segmentImageByColor(Mat& image, bool useCVHighGUI = true);
 		vector<Vec3f> recognizeTrafficSignsCircles(Mat& colorSegmentedImage, Mat& image, bool useCVHighGUI = true);
 		vector<Vec3f> filterRecognizedTrafficSignCircles(const vector<Vec3f>& houghCircles);
-		void flatClustersByMedian(vector< vector<Vec3f> > &houghCirclesClusters, vector<Vec3f> &houghCirclesFiltered);
+		void flatClustersByMeanCenter(vector< vector<Vec3f> > &houghCirclesClusters, vector<Vec3f> &houghCirclesFiltered);
+		void flatClustersByMedianCenter(vector< vector<Vec3f> > &houghCirclesClusters, vector<Vec3f> &houghCirclesFiltered);
 		void flatClustersByMaxRadius(vector< vector<Vec3f> > &houghCirclesClusters, vector<Vec3f> &houghCirclesFiltered);
-
 		bool aggregateCircleIntoClusters(vector< vector<Vec3f> >& houghCirclesClusters, const Vec3f& centerToAdd);
+		vector<RotatedRect> retrieveEllipsisFromHoughCircles(const Mat& colorSegmentedImage, const vector<Vec3f>& houghCirclesFiltered);
 
 		bool updateImage();
 		
@@ -103,8 +107,7 @@ class ImageAnalysis {
 		bool outputResults();		
 
 		void addHighGUIWindow(int column, int row, string windowName, int numberColumns = 3, int numberRows = 2);
-		void addHighGUITrackBarWindow(string windowName, int numberTrackBars, int cumulativeTrackBarPosition, int trackBarWindowNumber);
-
+		void addHighGUITrackBarWindow(string windowName, int numberTrackBars, int cumulativeTrackBarPosition, int trackBarWindowNumber);		
 
 	private:
 		vector<string> detectedSigns;

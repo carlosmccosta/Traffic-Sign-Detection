@@ -8,9 +8,9 @@ ImageAnalysis::ImageAnalysis() :
 	claehClipLimit(2), claehTileXSize(2), claehTileYSize(2),
 	bilateralFilterDistance(9), bilateralFilterSigmaColor(50), bilateralFilterSigmaSpace(10),
 	contrast(11), brightness(25),
-	colorSegmentationLowerHue(145), colorSegmentationUpperHue(10),
-	colorSegmentationLowerSaturation(56), colorSegmentationUpperSaturation(255),
-	colorSegmentationLowerValue(64), colorSegmentationUpperValue(255),
+	colorSegmentationLowerHue(150/*145*/), colorSegmentationUpperHue(5/*10*/),
+	colorSegmentationLowerSaturation(112/*56*/), colorSegmentationUpperSaturation(255),
+	colorSegmentationLowerValue(32/*64*/), colorSegmentationUpperValue(255),
 	cannyLowerHysteresisThreshold(100), cannyHigherHysteresisThreshold(200), cannySobelOperatorKernelSize(3),
 	houghCirclesDP(1), houghCirclesMinDistanceCenters(4),
 	houghCirclesCannyHigherThreshold(200), houghCirclesAccumulatorThreshold(25),
@@ -202,9 +202,18 @@ vector<Vec3f> ImageAnalysis::recognizeTrafficSignsCircles(Mat& colorSegmentedIma
 			Point center(cvRound(houghCirclesFiltered[i][0]), cvRound(houghCirclesFiltered[i][1]));
 			int radius = cvRound(houghCirclesFiltered[i][2]);
 
-			circle(image, center, 1, Scalar(255,0,0), 2, 8, 0);
-			circle(image, center, radius, Scalar(0,255,0), 2, 8, 0);
+			circle(image, center, 1, Scalar(255,0,0), 2);
+			circle(image, center, radius, Scalar(255,0,0), 2);
 		}
+	}
+
+	vector<RotatedRect> finalEllipsis = retrieveEllipsisFromHoughCircles(colorSegmentedImage, houghCirclesFiltered);
+	for (size_t ellipsePos = 0; ellipsePos < finalEllipsis.size(); ++ellipsePos) {
+		try {
+			RotatedRect& ellipseRect = finalEllipsis[ellipsePos];			
+			circle(image, ellipseRect.center, 1, Scalar(0,255,0), 2);
+			cv::ellipse(image, ellipseRect, Scalar(0,255,0), 2);
+		} catch(...) {}
 	}
 
 	return houghCirclesFiltered;
@@ -243,14 +252,38 @@ vector<Vec3f> ImageAnalysis::filterRecognizedTrafficSignCircles(const vector<Vec
 
 	// select the circle with the median y in each cluster (different traffic sign)
 	vector<Vec3f> houghCirclesFiltered;
-	flatClustersByMedian(houghCirclesClusters, houghCirclesFiltered);
+	flatClustersByMeanCenter(houghCirclesClusters, houghCirclesFiltered);
+	//flatClustersByMedianCenter(houghCirclesClusters, houghCirclesFiltered);
 	//flatClustersByMaxRadius(houghCirclesClusters, houghCirclesFiltered);
 
 	return houghCirclesFiltered;
 }
 
+void ImageAnalysis::flatClustersByMeanCenter(vector< vector<Vec3f> > &houghCirclesClusters, vector<Vec3f> &houghCirclesFiltered) {	
+	for (size_t circleClusterPos = 0; circleClusterPos < houghCirclesClusters.size(); ++circleClusterPos) {
+		vector<Vec3f> currentCluster = houghCirclesClusters[circleClusterPos];
 
-void ImageAnalysis::flatClustersByMedian(vector< vector<Vec3f> > &houghCirclesClusters, vector<Vec3f> &houghCirclesFiltered) {	
+		if (currentCluster.size() > 1) {
+			Vec3f meanCircle = currentCluster[0];
+			for (size_t circleInClusterPos = 1; circleInClusterPos < currentCluster.size(); ++circleInClusterPos) {
+				meanCircle[0] += currentCluster[circleInClusterPos][0];
+				meanCircle[1] += currentCluster[circleInClusterPos][1];
+				meanCircle[2] += currentCluster[circleInClusterPos][2];
+			}
+
+			meanCircle[0] /= currentCluster.size();
+			meanCircle[1] /= currentCluster.size();
+			meanCircle[2] /= currentCluster.size();
+
+			houghCirclesFiltered.push_back(meanCircle);
+		} else if (currentCluster.size() == 1) {
+			houghCirclesFiltered.push_back(currentCluster[0]);
+		}
+	}
+}
+
+
+void ImageAnalysis::flatClustersByMedianCenter(vector< vector<Vec3f> > &houghCirclesClusters, vector<Vec3f> &houghCirclesFiltered) {	
 	for (size_t circleClusterPos = 0; circleClusterPos < houghCirclesClusters.size(); ++circleClusterPos) {
 		vector<Vec3f> currentCluster = houghCirclesClusters[circleClusterPos];
 
@@ -312,6 +345,58 @@ bool ImageAnalysis::aggregateCircleIntoClusters(vector< vector<Vec3f> >& houghCi
 }
 
 
+vector<RotatedRect> ImageAnalysis::retrieveEllipsisFromHoughCircles(const Mat& colorSegmentedImage, const vector<Vec3f>& houghCirclesFiltered) {
+	vector<RotatedRect> ellipsis;
+	Mat colorSegmentedImageContours = colorSegmentedImage.clone();
+	int imageWidth = colorSegmentedImage.size().width;
+	int imageHeight = colorSegmentedImage.size().height;
+	for (size_t currentCirclePos = 0; currentCirclePos < houghCirclesFiltered.size(); ++currentCirclePos) {
+		const Vec3f& currentCircle = houghCirclesFiltered[currentCirclePos];
+		int currentCircleCenterX = cvRound(currentCircle[0]);
+		int currentCircleCenterY = cvRound(currentCircle[1]);
+		int currentCircleRadius = cvRound(currentCircle[2]);
+
+		// add offset to compensate errors from hough transform (radius with offset cannot surpass image boundaries)		
+		int maxRadiusAllowed = std::min(std::min(cvRound(currentCircle[0]), cvRound(currentCircle[1])), std::min(imageWidth - currentCircleCenterX, imageHeight - currentCircleCenterY));
+		int radiusRadiusWithOffset = std::min(cvRound(currentCircleRadius * PARAM_FIT_ELLIPSIS_SCALE_FOR_HOUGH_CIRCLE), maxRadiusAllowed);
+		int roiWidth = std::min(radiusRadiusWithOffset * 2, imageWidth);
+		int roiHeight = std::min(radiusRadiusWithOffset * 2, imageHeight);
+		int roiX = std::max(currentCircleCenterX - radiusRadiusWithOffset, 0);
+		int roiY = std::max(currentCircleCenterY - radiusRadiusWithOffset, 0);
+		
+		// make sure roi is inside image
+		roiWidth = std::min(roiWidth, imageWidth - roiX);
+		roiHeight = std::min(roiHeight, imageHeight - roiY);
+		
+		try {
+			Mat circleROI = colorSegmentedImageContours.clone()(Rect(roiX, roiY, roiWidth, roiHeight));
+			vector<vector<Point> > contours;		
+				
+			cv::findContours(circleROI, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE, Point(roiX, roiY));
+
+			if (!contours.empty()) {		
+				vector<Point>& biggestContour = contours[0];
+				for (size_t contourPos = 1; contourPos < contours.size(); ++contourPos) {
+					if (contours[contourPos].size() > biggestContour.size()) {
+						biggestContour = contours[contourPos];
+					}
+				}
+
+				// fitEllipse requires at lest 4 points
+				if (biggestContour.size() > 4) {
+					RotatedRect ellipseFound = cv::fitEllipse(biggestContour);
+					Rect ellipseBoundingRect = ellipseFound.boundingRect();
+					// ellipse must be inside image
+					//if (ellipseBoundingRect.size().width <= imageWidth && ellipseBoundingRect.size().height <= imageHeight)
+					ellipsis.push_back(ellipseFound);
+				}
+			}
+		} catch (...) { }
+	}
+
+	return ellipsis;
+}
+
 
 bool ImageAnalysis::updateImage() {
 	return processImage(originalImage.clone(), useCVHiGUI);
@@ -361,7 +446,9 @@ bool ImageAnalysis::processVideo(VideoCapture videoCapture, bool useCVHighGUI) {
 	
 	Mat currentFrame;	
 	while (videoCapture.read(currentFrame)) {
-		processImage(currentFrame, useCVHighGUI);
+		try {
+			processImage(currentFrame, useCVHighGUI);
+		} catch(...) {}
 		
 		if (waitKey(millisecPollingInterval) == ESC_KEYCODE) {
 			break;
