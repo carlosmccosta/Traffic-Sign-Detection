@@ -8,13 +8,16 @@ ImageAnalysis::ImageAnalysis() :
 	claehClipLimit(2), claehTileXSize(2), claehTileYSize(2),
 	bilateralFilterDistance(9), bilateralFilterSigmaColor(50), bilateralFilterSigmaSpace(10),
 	contrast(11), brightness(25),
-	colorSegmentationLowerHue(150/*145*/), colorSegmentationUpperHue(5/*10*/),
-	colorSegmentationLowerSaturation(112/*56*/), colorSegmentationUpperSaturation(255),
-	colorSegmentationLowerValue(32/*64*/), colorSegmentationUpperValue(255),
+	colorSegmentationLowerHue(147), colorSegmentationUpperHue(7),
+	colorSegmentationLowerSaturation(112), colorSegmentationUpperSaturation(255),
+	colorSegmentationLowerValue(32), colorSegmentationUpperValue(255),
+	textColorSegmentationLowerHue(20), textColorSegmentationUpperHue(140),
+	textColorSegmentationLowerSaturation(0), textColorSegmentationUpperSaturation(255),
+	textColorSegmentationLowerValue(0), textColorSegmentationUpperValue(147),
 	cannyLowerHysteresisThreshold(100), cannyHigherHysteresisThreshold(200), cannySobelOperatorKernelSize(3),
-	houghCirclesDP(1), houghCirclesMinDistanceCenters(4),
+	houghCirclesDP(1), houghCirclesMinDistanceCenters(2),
 	houghCirclesCannyHigherThreshold(200), houghCirclesAccumulatorThreshold(25),
-	houghCirclesMinRadius(2), houghCirclesMaxRadius(100) {};
+	houghCirclesMinRadius(1), houghCirclesMaxRadius(100) {};
 
 
 ImageAnalysis::~ImageAnalysis() {
@@ -67,12 +70,18 @@ bool ImageAnalysis::processImage(Mat& image, bool useCVHighGUI) {
 		}				
 	}
 
-	preprocessedImage = image.clone();
+	preprocessedImage = image.clone();	
 	preprocessImage(preprocessedImage, useCVHighGUI);
+	Mat preprocessedImageClone = preprocessedImage.clone();
 
-	Mat imageColorSegmented = segmentImageByColor(preprocessedImage, useCVHighGUI);
-	recognizeTrafficSignsCircles(imageColorSegmented, preprocessedImage, useCVHighGUI);
+	Mat imageColorSegmented = segmentImageByTrafficSignColor(preprocessedImage, useCVHighGUI);	
+	vector< pair<Rect, RotatedRect> > recognizedEllipsis;
+	recognizeTrafficSignsEllipsis(imageColorSegmented, preprocessedImage, recognizedEllipsis, useCVHighGUI);
 	
+	vector< pair< pair<Rect, RotatedRect>, vector<Rect> > > trafficSignsTextsSegments;
+	segmentImageByTrafficSignText(preprocessedImageClone, recognizedEllipsis, trafficSignsTextsSegments, useCVHighGUI);
+
+
 	processedImage = preprocessedImage;
 	if (useCVHighGUI) {
 		imshow(WINDOW_NAME_MAIN, originalImage);
@@ -127,26 +136,26 @@ void ImageAnalysis::histogramEqualization(Mat& image, bool use_CLAHE, bool useCV
 }
 
 
-Mat ImageAnalysis::segmentImageByColor(Mat& image, bool useCVHighGUI) {
+Mat ImageAnalysis::segmentImageByTrafficSignColor(Mat& preprocessedImage, bool useCVHighGUI) {
 	// color segmentation	
-	cvtColor(image, image, CV_BGR2HSV);
+	cvtColor(preprocessedImage, preprocessedImage, CV_BGR2HSV);
 	Mat colorSegmentation;
 
 	if (colorSegmentationLowerHue < colorSegmentationUpperHue) {
-		cv::inRange(image,
+		cv::inRange(preprocessedImage,
 			Scalar(colorSegmentationLowerHue, colorSegmentationLowerSaturation, colorSegmentationLowerValue),
 			Scalar(colorSegmentationUpperHue, colorSegmentationUpperSaturation, colorSegmentationUpperValue),
 			colorSegmentation);
 	} else {
 		// when colors wrap around from near 180 to 0+				
 		Mat lowerRange;
-		cv::inRange(image,
+		cv::inRange(preprocessedImage,
 			Scalar(0, colorSegmentationLowerSaturation, colorSegmentationLowerValue),
 			Scalar(colorSegmentationUpperHue, colorSegmentationUpperSaturation, colorSegmentationUpperValue),
 			lowerRange);
 	
 		Mat higherRange;
-		cv::inRange(image,
+		cv::inRange(preprocessedImage,
 			Scalar(colorSegmentationLowerHue, colorSegmentationLowerSaturation, colorSegmentationLowerValue),
 			Scalar(180, colorSegmentationUpperSaturation, colorSegmentationUpperValue),
 			higherRange);
@@ -154,7 +163,7 @@ Mat ImageAnalysis::segmentImageByColor(Mat& image, bool useCVHighGUI) {
 		cv::bitwise_or(lowerRange, higherRange, colorSegmentation);
 	}
 
-	cvtColor(image, image, CV_HSV2BGR);
+	cvtColor(preprocessedImage, preprocessedImage, CV_HSV2BGR);
 	if (useCVHighGUI) {
 		imshow(WINDOW_NAME_COLOR_SEGMENTATION, colorSegmentation);
 	}
@@ -163,7 +172,7 @@ Mat ImageAnalysis::segmentImageByColor(Mat& image, bool useCVHighGUI) {
 }
 
 
-vector<Vec3f> ImageAnalysis::recognizeTrafficSignsCircles(Mat& colorSegmentedImage, Mat& image, bool useCVHighGUI) {	
+void ImageAnalysis::recognizeTrafficSignsEllipsis(Mat& colorSegmentedImage, Mat& preprocessedImage, vector< pair<Rect,RotatedRect> >& outputRecognizedEllipsis, bool useCVHighGUI) {	
 	/*if (cannySobelOperatorKernelSize == 4 || cannySobelOperatorKernelSize == 6)
 		--cannySobelOperatorKernelSize;
 
@@ -195,28 +204,20 @@ vector<Vec3f> ImageAnalysis::recognizeTrafficSignsCircles(Mat& colorSegmentedIma
 		(houghCirclesAccumulatorThreshold < 1 ? 1 : houghCirclesAccumulatorThreshold),
 		circlesMinRadius, circlesMaxRadius);
 	
-	vector<Vec3f> houghCirclesFiltered = filterRecognizedTrafficSignCircles(houghCircles);	
+	vector<Vec3f> houghCirclesFiltered;
+	filterRecognizedTrafficSignCircles(houghCircles, houghCirclesFiltered);
 
 	if (useCVHighGUI) {
 		for (size_t i = 0; i < houghCirclesFiltered.size(); ++i) {
 			Point center(cvRound(houghCirclesFiltered[i][0]), cvRound(houghCirclesFiltered[i][1]));
 			int radius = cvRound(houghCirclesFiltered[i][2]);
 
-			circle(image, center, 1, Scalar(255,0,0), 2);
-			circle(image, center, radius, Scalar(255,0,0), 2);
+			circle(preprocessedImage, center, 1, Scalar(255,0,0), 2);
+			circle(preprocessedImage, center, radius, Scalar(255,0,0), 2);
 		}
 	}
-
-	vector<RotatedRect> finalEllipsis = retrieveEllipsisFromHoughCircles(colorSegmentedImage, houghCirclesFiltered);
-	for (size_t ellipsePos = 0; ellipsePos < finalEllipsis.size(); ++ellipsePos) {
-		try {
-			RotatedRect& ellipseRect = finalEllipsis[ellipsePos];			
-			circle(image, ellipseRect.center, 1, Scalar(0,255,0), 2);
-			cv::ellipse(image, ellipseRect, Scalar(0,255,0), 2);
-		} catch(...) {}
-	}
-
-	return houghCirclesFiltered;
+	
+	retrieveEllipsisFromHoughCircles(colorSegmentedImage, houghCirclesFiltered, outputRecognizedEllipsis, useCVHighGUI);
 }
 
 
@@ -228,38 +229,33 @@ bool sortCircleClusterByRadius(const Vec3f& left, const Vec3f& right) {
 	return left[2] < right[2];
 }
 
-vector<Vec3f> ImageAnalysis::filterRecognizedTrafficSignCircles(const vector<Vec3f>& houghCircles) {
-	if (houghCircles.size() < 2) {
-		return houghCircles;
-	}
-	
-	// aggregate circles closer to each other (with centers inside each other forming a cluster)
-	vector< vector<Vec3f> > houghCirclesClusters;
-	vector<Vec3f> firstCluster;
-	firstCluster.push_back(houghCircles[0]);
-	houghCirclesClusters.push_back(firstCluster);
+void ImageAnalysis::filterRecognizedTrafficSignCircles(const vector<Vec3f>& houghCircles, vector<Vec3f>& outputHoughCirclesFiltered) {
+	if (houghCircles.size() > 1) {				
+		// aggregate circles closer to each other (with centers inside each other forming a cluster)
+		vector< vector<Vec3f> > houghCirclesClusters;
+		vector<Vec3f> firstCluster;
+		firstCluster.push_back(houghCircles[0]);
+		houghCirclesClusters.push_back(firstCluster);
 
-	for (size_t allCirclesPos = 1; allCirclesPos < houghCircles.size(); ++allCirclesPos) {
-		const Vec3f& centerToAdd = houghCircles[allCirclesPos];
-		
-		if (!aggregateCircleIntoClusters(houghCirclesClusters, centerToAdd)) {
-			vector<Vec3f> newCluster;
-			newCluster.push_back(centerToAdd);
-			houghCirclesClusters.push_back(newCluster);
+		for (size_t allCirclesPos = 1; allCirclesPos < houghCircles.size(); ++allCirclesPos) {
+			const Vec3f& centerToAdd = houghCircles[allCirclesPos];
+
+			if (!aggregateCircleIntoClusters(houghCirclesClusters, centerToAdd)) {
+				vector<Vec3f> newCluster;
+				newCluster.push_back(centerToAdd);
+				houghCirclesClusters.push_back(newCluster);
+			}
 		}
+
+
+		// select the circle with the median y in each cluster (different traffic sign)	
+		flatClustersByMeanCenter(houghCirclesClusters, outputHoughCirclesFiltered);
+		//flatClustersByMedianCenter(houghCirclesClusters, outputHoughCirclesFiltered);
+		//flatClustersByMaxRadius(houghCirclesClusters, outputHoughCirclesFiltered);	
 	}
-
-
-	// select the circle with the median y in each cluster (different traffic sign)
-	vector<Vec3f> houghCirclesFiltered;
-	flatClustersByMeanCenter(houghCirclesClusters, houghCirclesFiltered);
-	//flatClustersByMedianCenter(houghCirclesClusters, houghCirclesFiltered);
-	//flatClustersByMaxRadius(houghCirclesClusters, houghCirclesFiltered);
-
-	return houghCirclesFiltered;
 }
 
-void ImageAnalysis::flatClustersByMeanCenter(vector< vector<Vec3f> > &houghCirclesClusters, vector<Vec3f> &houghCirclesFiltered) {	
+void ImageAnalysis::flatClustersByMeanCenter(vector< vector<Vec3f> > &houghCirclesClusters, vector<Vec3f> &outputHoughCirclesFiltered) {	
 	for (size_t circleClusterPos = 0; circleClusterPos < houghCirclesClusters.size(); ++circleClusterPos) {
 		vector<Vec3f> currentCluster = houghCirclesClusters[circleClusterPos];
 
@@ -275,15 +271,15 @@ void ImageAnalysis::flatClustersByMeanCenter(vector< vector<Vec3f> > &houghCircl
 			meanCircle[1] /= currentCluster.size();
 			meanCircle[2] /= currentCluster.size();
 
-			houghCirclesFiltered.push_back(meanCircle);
+			outputHoughCirclesFiltered.push_back(meanCircle);
 		} else if (currentCluster.size() == 1) {
-			houghCirclesFiltered.push_back(currentCluster[0]);
+			outputHoughCirclesFiltered.push_back(currentCluster[0]);
 		}
 	}
 }
 
 
-void ImageAnalysis::flatClustersByMedianCenter(vector< vector<Vec3f> > &houghCirclesClusters, vector<Vec3f> &houghCirclesFiltered) {	
+void ImageAnalysis::flatClustersByMedianCenter(vector< vector<Vec3f> > &houghCirclesClusters, vector<Vec3f> &outputHoughCirclesFiltered) {	
 	for (size_t circleClusterPos = 0; circleClusterPos < houghCirclesClusters.size(); ++circleClusterPos) {
 		vector<Vec3f> currentCluster = houghCirclesClusters[circleClusterPos];
 
@@ -299,28 +295,26 @@ void ImageAnalysis::flatClustersByMedianCenter(vector< vector<Vec3f> > &houghCir
 			} else {
 				selectedCircle = currentCluster[middlePos];
 			}
-			houghCirclesFiltered.push_back(selectedCircle);
+			outputHoughCirclesFiltered.push_back(selectedCircle);
 		} else if (currentCluster.size() == 1) {
-			houghCirclesFiltered.push_back(currentCluster[0]);
+			outputHoughCirclesFiltered.push_back(currentCluster[0]);
 		}
 	}
 }
 
 
-void ImageAnalysis::flatClustersByMaxRadius(vector< vector<Vec3f> > &houghCirclesClusters, vector<Vec3f> &houghCirclesFiltered) {	
+void ImageAnalysis::flatClustersByMaxRadius(vector< vector<Vec3f> > &houghCirclesClusters, vector<Vec3f> &outputHoughCirclesFiltered) {	
 	for (size_t circleClusterPos = 0; circleClusterPos < houghCirclesClusters.size(); ++circleClusterPos) {
 		vector<Vec3f> currentCluster = houghCirclesClusters[circleClusterPos];
 
 		if (currentCluster.size() > 1) {
 			sort(currentCluster.begin(), currentCluster.end(), sortCircleClusterByRadius);			
-			houghCirclesFiltered.push_back(currentCluster.back());
+			outputHoughCirclesFiltered.push_back(currentCluster.back());
 		} else if (currentCluster.size() == 1) {
-			houghCirclesFiltered.push_back(currentCluster[0]);
+			outputHoughCirclesFiltered.push_back(currentCluster[0]);
 		}
 	}
 }
-
-
 
 
 bool ImageAnalysis::aggregateCircleIntoClusters(vector< vector<Vec3f> >& houghCirclesClusters, const Vec3f& centerToAdd) {
@@ -345,8 +339,7 @@ bool ImageAnalysis::aggregateCircleIntoClusters(vector< vector<Vec3f> >& houghCi
 }
 
 
-vector<RotatedRect> ImageAnalysis::retrieveEllipsisFromHoughCircles(const Mat& colorSegmentedImage, const vector<Vec3f>& houghCirclesFiltered) {
-	vector<RotatedRect> ellipsis;
+void ImageAnalysis::retrieveEllipsisFromHoughCircles(const Mat& colorSegmentedImage, const vector<Vec3f>& houghCirclesFiltered, vector<pair<Rect, RotatedRect> >& outputTrafficSignEllipsis, bool useCVHighGUI) {
 	Mat colorSegmentedImageContours = colorSegmentedImage.clone();
 	int imageWidth = colorSegmentedImage.size().width;
 	int imageHeight = colorSegmentedImage.size().height;
@@ -376,26 +369,96 @@ vector<RotatedRect> ImageAnalysis::retrieveEllipsisFromHoughCircles(const Mat& c
 
 			if (!contours.empty()) {		
 				vector<Point>& biggestContour = contours[0];
+				double biggestContourArea = cv::contourArea(biggestContour);
 				for (size_t contourPos = 1; contourPos < contours.size(); ++contourPos) {
-					if (contours[contourPos].size() > biggestContour.size()) {
-						biggestContour = contours[contourPos];
+					vector<Point>& currentContour = contours[contourPos];
+					double currentContourArea = cv::contourArea(currentContour);
+					if (currentContourArea > biggestContourArea && currentContour.size() > 4) {
+						biggestContour = currentContour;
+						biggestContourArea = currentContourArea;
 					}
 				}
 
 				// fitEllipse requires at lest 4 points
 				if (biggestContour.size() > 4) {
 					RotatedRect ellipseFound = cv::fitEllipse(biggestContour);
-					Rect ellipseBoundingRect = ellipseFound.boundingRect();
-					// ellipse must be inside image
-					//if (ellipseBoundingRect.size().width <= imageWidth && ellipseBoundingRect.size().height <= imageHeight)
-					ellipsis.push_back(ellipseFound);
+					Rect ellipseBoundingRect = boundingRect(biggestContour);
+
+					// ellipse bounding rect must be inside image					
+					ellipseBoundingRect.x = std::max(ellipseBoundingRect.x, 0);
+					ellipseBoundingRect.y = std::max(ellipseBoundingRect.y, 0);
+					ellipseBoundingRect.width = std::min(ellipseBoundingRect.width, imageWidth - ellipseBoundingRect.x);
+					ellipseBoundingRect.height = std::min(ellipseBoundingRect.height, imageHeight - ellipseBoundingRect.y);
+					
+					// ellipse center must be inside hough transform circle
+					/*int dx = cvRound(ellipseFound.center.x - currentCircleCenterX);
+					int dy = cvRound(ellipseFound.center.y - currentCircleCenterY);
+					if (sqrt(dx*dx + dy*dy) < currentCircleRadius) {*/
+						outputTrafficSignEllipsis.push_back(pair<Rect, RotatedRect>(ellipseBoundingRect, ellipseFound));
+
+						if (useCVHighGUI) {						
+							circle(preprocessedImage, ellipseFound.center, 1, Scalar(0,255,0), 2);
+							ellipse(preprocessedImage, ellipseFound, Scalar(0,255,0), 2);
+							rectangle(preprocessedImage, ellipseBoundingRect, Scalar(0,255,0), 2);
+						}
+					/*}*/
 				}
 			}
 		} catch (...) { }
+	}	
+}
+
+
+void ImageAnalysis::segmentImageByTrafficSignText(Mat& preprocessedImage, vector< pair<Rect, RotatedRect> >& trafficSignEllipsis, vector< pair< pair<Rect, RotatedRect>, vector<Rect> > >& outputTrafficSignsTextsSegments, bool useCVHighGUI) {		
+	Mat imageHSV;
+	cvtColor(preprocessedImage, imageHSV, CV_BGR2HSV);
+	Mat imageROIs(imageHSV.rows, imageHSV.cols, imageHSV.type(), Scalar(0,0,255));
+	Mat imageTexts(imageHSV.rows, imageHSV.cols, CV_8U, Scalar(0));
+
+	for(size_t ellipsePos = 0; ellipsePos < trafficSignEllipsis.size(); ++ellipsePos) {
+		RotatedRect& currentEllipse = trafficSignEllipsis[ellipsePos].second;
+		Rect ellipseBoundingRect = trafficSignEllipsis[ellipsePos].first;
+		
+		Mat imageHSVClone = imageHSV.clone();
+		Mat ellipseROIMaskBlack(imageHSVClone.rows, imageHSVClone.cols, imageHSVClone.type(), Scalar(0,0,0));
+		ellipse(ellipseROIMaskBlack, currentEllipse, Scalar(255,255,255), -1);
+
+		Mat ellipseROIMaskWhite(imageHSVClone.rows, imageHSVClone.cols, imageHSVClone.type(), Scalar(0,0,255));
+		ellipse(ellipseROIMaskWhite, currentEllipse, Scalar(0,0,0), -1);
+
+		// extract pixels only inside ellipse		
+		bitwise_and(imageHSVClone, ellipseROIMaskBlack, imageHSVClone);
+
+		// pixels outside image cant be black because traffic sign letters are black and they will be color segmented
+		cv::add(imageHSVClone, ellipseROIMaskWhite, imageHSVClone);
+		
+		
+		Mat ellipseROI = imageHSVClone(ellipseBoundingRect);
+		Mat textColorSegmentation;
+
+		cv::inRange(ellipseROI,
+			Scalar(textColorSegmentationLowerHue, textColorSegmentationLowerSaturation, textColorSegmentationLowerValue),
+			Scalar(textColorSegmentationUpperHue, textColorSegmentationUpperSaturation, textColorSegmentationUpperValue),
+			textColorSegmentation);
+
+		
+		if (useCVHighGUI) {
+			try {				
+				ellipseROI.copyTo(imageROIs(ellipseBoundingRect));
+				textColorSegmentation.copyTo(imageTexts(ellipseBoundingRect));
+			} catch(...) {}
+		}
 	}
 
-	return ellipsis;
+	if (useCVHighGUI) {
+		try {			
+			cvtColor(imageROIs, imageROIs, CV_HSV2BGR);
+			imshow(WINDOW_NAME_SIGNAL_ROI, imageROIs);
+			imshow(WINDOW_NAME_SIGNAL_TEXTS, imageTexts);
+		} catch(...) {}
+	}
 }
+
 
 
 bool ImageAnalysis::updateImage() {
@@ -481,10 +544,12 @@ void ImageAnalysis::setupResultsWindows(bool optionsOneWindow) {
 	addHighGUIWindow(1, 0, WINDOW_NAME_BILATERAL_FILTER);
 	//addHighGUIWindow(2, 0, WINDOW_NAME_HISTOGRAM_EQUALIZATION);
 	addHighGUIWindow(2, 0, WINDOW_NAME_HISTOGRAM_EQUALIZATION_CLAHE);
-	addHighGUIWindow(0, 1, WINDOW_NAME_CONTRAST_AND_BRIGHTNESS);
-	addHighGUIWindow(1, 1, WINDOW_NAME_COLOR_SEGMENTATION);
+	addHighGUIWindow(3, 0, WINDOW_NAME_CONTRAST_AND_BRIGHTNESS);
+	addHighGUIWindow(0, 1, WINDOW_NAME_COLOR_SEGMENTATION);
 	//addHighGUIWindow(1, 1, WINDOW_NAME_SIGNAL_CANNY);
-	addHighGUIWindow(2, 1, WINDOW_NAME_SIGNAL_RECOGNITION);
+	addHighGUIWindow(1, 1, WINDOW_NAME_SIGNAL_RECOGNITION);
+	addHighGUIWindow(2, 1, WINDOW_NAME_SIGNAL_ROI);
+	addHighGUIWindow(3, 1, WINDOW_NAME_SIGNAL_TEXTS);
 	
 	if (optionsOneWindow) {		
 		namedWindow(WINDOW_NAME_OPTIONS, CV_WINDOW_NORMAL);
@@ -494,7 +559,8 @@ void ImageAnalysis::setupResultsWindows(bool optionsOneWindow) {
 		addHighGUITrackBarWindow(WINDOW_NAME_BILATERAL_FILTER_OPTIONS, 3, 0, 0);
 		addHighGUITrackBarWindow(WINDOW_NAME_HISTOGRAM_EQUALIZATION_CLAHE_OPTIONS, 3, 3, 1);		
 		addHighGUITrackBarWindow(WINDOW_NAME_CONTRAST_AND_BRIGHTNESS_OPTIONS, 2, 6, 2);
-		addHighGUITrackBarWindow(WINDOW_NAME_COLOR_SEGMENTATION_OPTIONS, 6, 8, 3);
+		addHighGUITrackBarWindow(WINDOW_NAME_COLOR_SEGMENTATION_OPTIONS, 6, 8, 3, 2 * WINDOW_FRAME_THICKNESS);
+		addHighGUITrackBarWindow(WINDOW_NAME_SIGNAL_TEXTS_OPTIONS, 6, 8, 3, 0, WINDOW_HEADER_HEIGHT);
 		/*addHighGUITrackBarWindow(WINDOW_NAME_SIGNAL_CANNY_OPTIONS, 3, 14, 4);
 		addHighGUITrackBarWindow(WINDOW_NAME_SIGNAL_RECOGNITION_OPTIONS, 6, 17, 5);*/
 		addHighGUITrackBarWindow(WINDOW_NAME_SIGNAL_RECOGNITION_OPTIONS, 6, 14, 4);
@@ -518,6 +584,13 @@ void ImageAnalysis::setupResultsWindows(bool optionsOneWindow) {
 	cv::createTrackbar(TRACK_BAR_NAME_COLOR_SEG_MIN_VAL, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_COLOR_SEGMENTATION_OPTIONS), &colorSegmentationLowerValue, 255, updateImageAnalysis, (void*)this);
 	cv::createTrackbar(TRACK_BAR_NAME_COLOR_SEG_MAX_VAL, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_COLOR_SEGMENTATION_OPTIONS), &colorSegmentationUpperValue, 255, updateImageAnalysis, (void*)this);
 
+	cv::createTrackbar(TRACK_BAR_NAME_COLOR_SEG_MIN_HUE, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_SIGNAL_TEXTS_OPTIONS), &textColorSegmentationLowerHue, 180, updateImageAnalysis, (void*)this);
+	cv::createTrackbar(TRACK_BAR_NAME_COLOR_SEG_MAX_HUE, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_SIGNAL_TEXTS_OPTIONS), &textColorSegmentationUpperHue, 180, updateImageAnalysis, (void*)this);
+	cv::createTrackbar(TRACK_BAR_NAME_COLOR_SEG_MIN_SAT, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_SIGNAL_TEXTS_OPTIONS), &textColorSegmentationLowerSaturation, 255, updateImageAnalysis, (void*)this);
+	cv::createTrackbar(TRACK_BAR_NAME_COLOR_SEG_MAX_SAT, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_SIGNAL_TEXTS_OPTIONS), &textColorSegmentationUpperSaturation, 255, updateImageAnalysis, (void*)this);
+	cv::createTrackbar(TRACK_BAR_NAME_COLOR_SEG_MIN_VAL, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_SIGNAL_TEXTS_OPTIONS), &textColorSegmentationLowerValue, 255, updateImageAnalysis, (void*)this);
+	cv::createTrackbar(TRACK_BAR_NAME_COLOR_SEG_MAX_VAL, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_SIGNAL_TEXTS_OPTIONS), &textColorSegmentationUpperValue, 255, updateImageAnalysis, (void*)this);
+
 	/*cv::createTrackbar(TRACK_BAR_NAME_CANNY_LOWER_HYSTERESIS_THRESHOLD, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_SIGNAL_CANNY_OPTIONS), &cannyLowerHysteresisThreshold, 100, updateImageAnalysis, (void*)this);
 	cv::createTrackbar(TRACK_BAR_NAME_CANNY_HIGHER_HYSTERESIS_THRESHOLD, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_SIGNAL_CANNY_OPTIONS), &cannyHigherHysteresisThreshold, 300, updateImageAnalysis, (void*)this);
 	cv::createTrackbar(TRACK_BAR_NAME_CANNY_KERNEL_SIZE_SOBEL, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_SIGNAL_CANNY_OPTIONS), &cannySobelOperatorKernelSize, 7, updateImageAnalysis, (void*)this);*/
@@ -531,9 +604,9 @@ void ImageAnalysis::setupResultsWindows(bool optionsOneWindow) {
 }
 
 
-void ImageAnalysis::addHighGUIWindow(int column, int row, string windowName, int numberColumns, int numberRows) {
+pair<int, int> ImageAnalysis::addHighGUIWindow(int column, int row, string windowName, int numberColumns, int numberRows, int xOffset, int yOffset) {
 	if (numberColumns < 1 || numberRows < 1)
-		return;
+		return pair<int, int>(0, 0);
 	
 	int imageWidth = originalImage.size().width;
 	if (imageWidth < 10)
@@ -565,19 +638,31 @@ void ImageAnalysis::addHighGUIWindow(int column, int row, string windowName, int
 		y = windowHeight * row;
 	}
 
+	x += xOffset;
+	y += yOffset;
+	
 	moveWindow(windowName, x, y);
+
+	return pair<int, int>(x, y);
 }
 
 
-void ImageAnalysis::addHighGUITrackBarWindow(string windowName, int numberTrackBars, int cumulativeTrackBarPosition, int trackBarWindowNumber) {
+pair<int, int> ImageAnalysis::addHighGUITrackBarWindow(string windowName, int numberTrackBars, int cumulativeTrackBarPosition, int trackBarWindowNumber, int xOffset, int yOffset) {
 	namedWindow(windowName, CV_WINDOW_NORMAL | CV_WINDOW_KEEPRATIO | CV_GUI_EXPANDED);
 
 	int width = WINDOW_OPTIONS_WIDTH - WINDOW_FRAME_THICKNESS * 2;
 	int height = numberTrackBars * WINDOW_OPTIONS_TRACKBAR_HEIGHT;
 	resizeWindow(windowName, width, height);
 
-	int heightPos = (WINDOW_HEADER_HEIGHT + WINDOW_FRAME_THICKNESS) * trackBarWindowNumber + WINDOW_OPTIONS_TRACKBAR_HEIGHT * cumulativeTrackBarPosition;
-	moveWindow(windowName, screenWidth - WINDOW_OPTIONS_WIDTH, heightPos);
+	int x = (screenWidth - WINDOW_OPTIONS_WIDTH) + xOffset;
+	int y = ((WINDOW_HEADER_HEIGHT + WINDOW_FRAME_THICKNESS) * trackBarWindowNumber + WINDOW_OPTIONS_TRACKBAR_HEIGHT * cumulativeTrackBarPosition) + yOffset;
+	
+	moveWindow(windowName, x, y);
+
+
+	
+
+	return pair<int, int>(x, y);
 }
 
 

@@ -25,6 +25,8 @@ using cv::namedWindow;
 using cv::moveWindow;
 using cv::resizeWindow;
 using cv::circle;
+using cv::ellipse;
+using cv::rectangle;
 
 #define PARAM_FIT_ELLIPSIS_SCALE_FOR_HOUGH_CIRCLE 1.50
 
@@ -41,8 +43,11 @@ using cv::circle;
 #define WINDOW_NAME_COLOR_SEGMENTATION_OPTIONS "4.1. Color segmentation configuration"
 #define WINDOW_NAME_SIGNAL_CANNY "5. Canny edge detector"
 #define WINDOW_NAME_SIGNAL_CANNY_OPTIONS "5.1. Canny edge detector options"
-#define WINDOW_NAME_SIGNAL_RECOGNITION "6. Signal recognition"
+#define WINDOW_NAME_SIGNAL_RECOGNITION "6. Signal circle and ellipse recognition"
 #define WINDOW_NAME_SIGNAL_RECOGNITION_OPTIONS "6.1. Signal recognition options"
+#define WINDOW_NAME_SIGNAL_ROI "7. Traffic signals ROIs"
+#define WINDOW_NAME_SIGNAL_TEXTS "8. Traffic signals texts"
+#define WINDOW_NAME_SIGNAL_TEXTS_OPTIONS "8.1. Traffic signals texts options"
 
 #define TRACK_BAR_NAME_BI_FILTER_DIST "1Dist"
 #define TRACK_BAR_NAME_BI_FILTER_COLOR_SIG "1Color Sig"
@@ -87,14 +92,17 @@ class ImageAnalysis {
 		void preprocessImage(Mat& image, bool useCVHighGUI = true);
 		void histogramEqualization(Mat& image, bool use_CLAHE = true, bool useCVHighGUI = true);		
 
-		Mat segmentImageByColor(Mat& image, bool useCVHighGUI = true);
-		vector<Vec3f> recognizeTrafficSignsCircles(Mat& colorSegmentedImage, Mat& image, bool useCVHighGUI = true);
-		vector<Vec3f> filterRecognizedTrafficSignCircles(const vector<Vec3f>& houghCircles);
-		void flatClustersByMeanCenter(vector< vector<Vec3f> > &houghCirclesClusters, vector<Vec3f> &houghCirclesFiltered);
-		void flatClustersByMedianCenter(vector< vector<Vec3f> > &houghCirclesClusters, vector<Vec3f> &houghCirclesFiltered);
-		void flatClustersByMaxRadius(vector< vector<Vec3f> > &houghCirclesClusters, vector<Vec3f> &houghCirclesFiltered);
+		Mat segmentImageByTrafficSignColor(Mat& preprocessedImage, bool useCVHighGUI = true);
+		void recognizeTrafficSignsEllipsis(Mat& colorSegmentedImage, Mat& preprocessedImage, vector< pair<Rect, RotatedRect> >& outputRecognizedEllipsis, bool useCVHighGUI = true);
+		void filterRecognizedTrafficSignCircles(const vector<Vec3f>& houghCircles, vector<Vec3f>& outputHoughCirclesFiltered);
+		void flatClustersByMeanCenter(vector< vector<Vec3f> > &houghCirclesClusters, vector<Vec3f> &outputHoughCirclesFiltered);
+		void flatClustersByMedianCenter(vector< vector<Vec3f> > &houghCirclesClusters, vector<Vec3f> &outputHoughCirclesFiltered);
+		void flatClustersByMaxRadius(vector< vector<Vec3f> > &houghCirclesClusters, vector<Vec3f> &outputHoughCirclesFiltered);
 		bool aggregateCircleIntoClusters(vector< vector<Vec3f> >& houghCirclesClusters, const Vec3f& centerToAdd);
-		vector<RotatedRect> retrieveEllipsisFromHoughCircles(const Mat& colorSegmentedImage, const vector<Vec3f>& houghCirclesFiltered);
+		void retrieveEllipsisFromHoughCircles(const Mat& colorSegmentedImage, const vector<Vec3f>& houghCirclesFiltered, vector<pair<Rect, RotatedRect> >& outputTrafficSignEllipsis, bool useCVHighGUI = true);
+		
+		void segmentImageByTrafficSignText(Mat& preprocessedImage, vector< pair<Rect, RotatedRect> >& trafficSignEllipsis, vector< pair< pair<Rect, RotatedRect>, vector<Rect> > >& outputTrafficSignsTextsSegments, bool useCVHighGUI = true);
+
 
 		bool updateImage();
 		
@@ -106,8 +114,8 @@ class ImageAnalysis {
 		void setupResultsWindows(bool optionsOneWindow = false);
 		bool outputResults();		
 
-		void addHighGUIWindow(int column, int row, string windowName, int numberColumns = 3, int numberRows = 2);
-		void addHighGUITrackBarWindow(string windowName, int numberTrackBars, int cumulativeTrackBarPosition, int trackBarWindowNumber);		
+		pair<int, int> addHighGUIWindow(int column, int row, string windowName, int numberColumns = 4, int numberRows = 2, int xOffset = 0, int yOffset = 0);
+		pair<int, int> addHighGUITrackBarWindow(string windowName, int numberTrackBars, int cumulativeTrackBarPosition, int trackBarWindowNumber, int xOffset = 0, int yOffset = 0);
 
 	private:
 		vector<string> detectedSigns;
@@ -138,6 +146,13 @@ class ImageAnalysis {
 		int colorSegmentationUpperSaturation;
 		int colorSegmentationLowerValue;				
 		int colorSegmentationUpperValue;
+
+		int textColorSegmentationLowerHue;
+		int textColorSegmentationUpperHue;
+		int textColorSegmentationLowerSaturation;
+		int textColorSegmentationUpperSaturation;
+		int textColorSegmentationLowerValue;				
+		int textColorSegmentationUpperValue;
 
 		int cannyLowerHysteresisThreshold;
 		int cannyHigherHysteresisThreshold;
