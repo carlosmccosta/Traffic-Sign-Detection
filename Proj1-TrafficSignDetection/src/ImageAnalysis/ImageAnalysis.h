@@ -49,17 +49,19 @@ using cv::rectangle;
 #define WINDOW_NAME_HISTOGRAM_EQUALIZATION "2. Global histogram equalization (not used)"
 #define WINDOW_NAME_HISTOGRAM_EQUALIZATION_CLAHE "2. Histogram equalization CLAHE"
 #define WINDOW_NAME_HISTOGRAM_EQUALIZATION_CLAHE_OPTIONS "2.1. Histogram equalization CLAHE options"
-#define WINDOW_NAME_CONTRAST_AND_BRIGHTNESS "3. Contrast and brightness and bilateral filtering"
+#define WINDOW_NAME_CONTRAST_AND_BRIGHTNESS "3. Contrast, brightness and bilateral filtering (2nd pass)"
 #define WINDOW_NAME_CONTRAST_AND_BRIGHTNESS_OPTIONS "3.1. Contrast and brightness options"
-#define WINDOW_NAME_COLOR_SEGMENTATION "4. Color segmentation"
-#define WINDOW_NAME_COLOR_SEGMENTATION_OPTIONS "4.1. Color segmentation configuration"
-#define WINDOW_NAME_SIGNAL_CANNY "5. Canny edge detector"
-#define WINDOW_NAME_SIGNAL_CANNY_OPTIONS "5.1. Canny edge detector options"
-#define WINDOW_NAME_SIGNAL_RECOGNITION "6. Signal circle and ellipse recognition"
-#define WINDOW_NAME_SIGNAL_RECOGNITION_OPTIONS "6.1. Signal recognition options"
-#define WINDOW_NAME_SIGNAL_TEXTS "7. Traffic signals texts"
-#define WINDOW_NAME_SIGNAL_TEXTS_OPTIONS "7.1. Traffic signals texts options"
-#define WINDOW_NAME_SIGNAL_ROI "8. Traffic signals ROIs"
+#define WINDOW_NAME_SIGNAL_COLOR_SEGMENTATION "4. Signal color segmentation with morphology operators"
+#define WINDOW_NAME_SIGNAL_COLOR_SEGMENTATION_OPTIONS "4.1. Signal color segmentation options"
+#define WINDOW_NAME_SIGNAL_MORPHOLOGY_OPERATORS_OPTIONS "4.2. Signal morphology operators options"
+//#define WINDOW_NAME_SIGNAL_CANNY "5. Canny edge detector"
+//#define WINDOW_NAME_SIGNAL_CANNY_OPTIONS "5.1. Canny edge detector options"
+#define WINDOW_NAME_SIGNAL_RECOGNITION "5. Signal circle and ellipse recognition"
+#define WINDOW_NAME_SIGNAL_RECOGNITION_OPTIONS "5.1. Signal circle and ellipse recognition options"
+#define WINDOW_NAME_TEXT_COLOR_SEGMENTATION "6. Text color segmentation with morphology operators"
+#define WINDOW_NAME_TEXT_MORPHOLOGY_OPERATORS_OPTIONS "6.1. Text morphology operators options"
+#define WINDOW_NAME_TEXT_COLOR_SEGMENTATION_OPTIONS "6.2. Text color segmentation options"
+#define WINDOW_NAME_SIGNAL_ROI "7. Traffic signals ROIs"
 
 #define TRACK_BAR_NAME_BI_FILTER_DIST "1Dist"
 #define TRACK_BAR_NAME_BI_FILTER_COLOR_SIG "1Color Sig"
@@ -69,21 +71,36 @@ using cv::rectangle;
 #define TRACK_BAR_NAME_CLAHE_TILE_Y "2Tile Y"
 #define TRACK_BAR_NAME_CONTRAST "3Contr*10"
 #define TRACK_BAR_NAME_BRIGHTNESS "3Brigh*10"
-#define TRACK_BAR_NAME_COLOR_SEG_MIN_HUE "4Min Hue"
-#define TRACK_BAR_NAME_COLOR_SEG_MAX_HUE "4Max Hue"
-#define TRACK_BAR_NAME_COLOR_SEG_MIN_SAT "4Min Sat"
-#define TRACK_BAR_NAME_COLOR_SEG_MAX_SAT "4Max Sat"
-#define TRACK_BAR_NAME_COLOR_SEG_MIN_VAL "4Min Val"
-#define TRACK_BAR_NAME_COLOR_SEG_MAX_VAL "4Max Val"
+#define TRACK_BAR_NAME_SIGNAL_COLOR_SEG_MIN_HUE "4Min Hue"
+#define TRACK_BAR_NAME_SIGNAL_COLOR_SEG_MAX_HUE "4Max Hue"
+#define TRACK_BAR_NAME_SIGNAL_COLOR_SEG_MIN_SAT "4Min Sat"
+#define TRACK_BAR_NAME_SIGNAL_COLOR_SEG_MAX_SAT "4Max Sat"
+#define TRACK_BAR_NAME_SIGNAL_COLOR_SEG_MIN_VAL "4Min Val"
+#define TRACK_BAR_NAME_SIGNAL_COLOR_SEG_MAX_VAL "4Max Val"
+#define TRACK_BAR_NAME_SIGNAL_MORPH_OPERATOR "4MorphOper"
+#define TRACK_BAR_NAME_SIGNAL_MORPH_KERNEL_SIZE_X "4MorKrnRdX"
+#define TRACK_BAR_NAME_SIGNAL_MORPH_KERNEL_SIZE_Y "4MorKrnRdY"
+#define TRACK_BAR_NAME_SIGNAL_MORPH_ITERATIONS "4MorphIter"
 //#define TRACK_BAR_NAME_CANNY_LOWER_HYSTERESIS_THRESHOLD "5CLowHyst"
 //#define TRACK_BAR_NAME_CANNY_HIGHER_HYSTERESIS_THRESHOLD "5CHighHyst"
 //#define TRACK_BAR_NAME_CANNY_KERNEL_SIZE_SOBEL "5CApperSbl"
-#define TRACK_BAR_NAME_HOUGH_CIRCLES_DP "6Hough DP"
-#define TRACK_BAR_NAME_HOUGH_CIRCLES_MIN_DIST_CENTERS "6MinDCntr%"
-#define TRACK_BAR_NAME_HOUGH_CIRCLES_CANNY_HIGHER_THRESHOLD "6CnyHiThrs"
-#define TRACK_BAR_NAME_HOUGH_CIRCLES_ACCUMULATOR_THRESHOLD "6AccumThrs"
-#define TRACK_BAR_NAME_HOUGH_CIRCLES_MIN_RADIUS "6MinRadiu%"
-#define TRACK_BAR_NAME_HOUGH_CIRCLES_MAX_RADIUS "6MaxRadiu%"
+#define TRACK_BAR_NAME_HOUGH_CIRCLES_DP "5Hough DP"
+#define TRACK_BAR_NAME_HOUGH_CIRCLES_MIN_DIST_CENTERS "5MinDCntr%"
+#define TRACK_BAR_NAME_HOUGH_CIRCLES_CANNY_HIGHER_THRESHOLD "5CnyHiThrs"
+#define TRACK_BAR_NAME_HOUGH_CIRCLES_ACCUMULATOR_THRESHOLD "5AccumThrs"
+#define TRACK_BAR_NAME_HOUGH_CIRCLES_MIN_RADIUS "5MinRadiu%"
+#define TRACK_BAR_NAME_HOUGH_CIRCLES_MAX_RADIUS "5MaxRadiu%"
+#define TRACK_BAR_NAME_TEXT_COLOR_SEG_MIN_HUE "6Min Hue"
+#define TRACK_BAR_NAME_TEXT_COLOR_SEG_MAX_HUE "6Max Hue"
+#define TRACK_BAR_NAME_TEXT_COLOR_SEG_MIN_SAT "6Min Sat"
+#define TRACK_BAR_NAME_TEXT_COLOR_SEG_MAX_SAT "6Max Sat"
+#define TRACK_BAR_NAME_TEXT_COLOR_SEG_MIN_VAL "6Min Val"
+#define TRACK_BAR_NAME_TEXT_COLOR_SEG_MAX_VAL "6Max Val"
+#define TRACK_BAR_NAME_TEXT_MORPH_OPERATOR "6MorphOper"
+#define TRACK_BAR_NAME_TEXT_MORPH_KERNEL_SIZE_X "6MorKrnRdX"
+#define TRACK_BAR_NAME_TEXT_MORPH_KERNEL_SIZE_Y "6MorKrnRdY"
+#define TRACK_BAR_NAME_TEXT_MORPH_ITERATIONS "6MorphIter"
+
 
 #define	WINDOW_HEADER_HEIGHT 32
 #define WINDOW_FRAME_THICKNESS 8
@@ -154,12 +171,16 @@ class ImageAnalysis {
 		int contrast;
 		int brightness;
 
-		int colorSegmentationLowerHue;
-		int colorSegmentationUpperHue;
-		int colorSegmentationLowerSaturation;
-		int colorSegmentationUpperSaturation;
-		int colorSegmentationLowerValue;				
-		int colorSegmentationUpperValue;
+		int signalColorSegmentationLowerHue;
+		int signalColorSegmentationUpperHue;
+		int signalColorSegmentationLowerSaturation;
+		int signalColorSegmentationUpperSaturation;
+		int signalColorSegmentationLowerValue;				
+		int signalColorSegmentationUpperValue;
+		int signalColorSegmentationMorphType;
+		int signalColorSegmentationMorphKernelSizeX;
+		int signalColorSegmentationMorphKernelSizeY;
+		int signalColorSegmentationMorphIterations;
 
 		int textColorSegmentationLowerHue;
 		int textColorSegmentationUpperHue;
@@ -167,6 +188,10 @@ class ImageAnalysis {
 		int textColorSegmentationUpperSaturation;
 		int textColorSegmentationLowerValue;				
 		int textColorSegmentationUpperValue;
+		int textColorSegmentationMorphType;
+		int textColorSegmentationMorphKernelSizeX;
+		int textColorSegmentationMorphKernelSizeY;
+		int textColorSegmentationMorphIterations;
 
 		int cannyLowerHysteresisThreshold;
 		int cannyHigherHysteresisThreshold;

@@ -8,12 +8,14 @@ ImageAnalysis::ImageAnalysis() :
 	claehClipLimit(2), claehTileXSize(2), claehTileYSize(2),
 	bilateralFilterDistance(9), bilateralFilterSigmaColor(50), bilateralFilterSigmaSpace(10),
 	contrast(11), brightness(25),
-	colorSegmentationLowerHue(147), colorSegmentationUpperHue(7),
-	colorSegmentationLowerSaturation(112), colorSegmentationUpperSaturation(255),
-	colorSegmentationLowerValue(32), colorSegmentationUpperValue(255),
+	signalColorSegmentationLowerHue(147), signalColorSegmentationUpperHue(7),
+	signalColorSegmentationLowerSaturation(112), signalColorSegmentationUpperSaturation(255),
+	signalColorSegmentationLowerValue(32), signalColorSegmentationUpperValue(255),
+	signalColorSegmentationMorphType(0), signalColorSegmentationMorphKernelSizeX(2), signalColorSegmentationMorphKernelSizeY(2), signalColorSegmentationMorphIterations(1),
 	textColorSegmentationLowerHue(20), textColorSegmentationUpperHue(140),
 	textColorSegmentationLowerSaturation(0), textColorSegmentationUpperSaturation(255),
 	textColorSegmentationLowerValue(0), textColorSegmentationUpperValue(147),
+	textColorSegmentationMorphType(1), textColorSegmentationMorphKernelSizeX(1), textColorSegmentationMorphKernelSizeY(1), textColorSegmentationMorphIterations(1),
 	cannyLowerHysteresisThreshold(100), cannyHigherHysteresisThreshold(200), cannySobelOperatorKernelSize(3),
 	houghCirclesDP(1), houghCirclesMinDistanceCenters(2),
 	houghCirclesCannyHigherThreshold(200), houghCirclesAccumulatorThreshold(25),
@@ -142,31 +144,46 @@ Mat ImageAnalysis::segmentImageByTrafficSignColor(Mat& preprocessedImage, bool u
 	cvtColor(preprocessedImage, preprocessedImage, CV_BGR2HSV);
 	Mat colorSegmentation;
 
-	if (colorSegmentationLowerHue < colorSegmentationUpperHue) {
+	if (signalColorSegmentationLowerHue < signalColorSegmentationUpperHue) {
 		cv::inRange(preprocessedImage,
-			Scalar(colorSegmentationLowerHue, colorSegmentationLowerSaturation, colorSegmentationLowerValue),
-			Scalar(colorSegmentationUpperHue, colorSegmentationUpperSaturation, colorSegmentationUpperValue),
+			Scalar(signalColorSegmentationLowerHue, signalColorSegmentationLowerSaturation, signalColorSegmentationLowerValue),
+			Scalar(signalColorSegmentationUpperHue, signalColorSegmentationUpperSaturation, signalColorSegmentationUpperValue),
 			colorSegmentation);
 	} else {
 		// when colors wrap around from near 180 to 0+				
 		Mat lowerRange;
 		cv::inRange(preprocessedImage,
-			Scalar(0, colorSegmentationLowerSaturation, colorSegmentationLowerValue),
-			Scalar(colorSegmentationUpperHue, colorSegmentationUpperSaturation, colorSegmentationUpperValue),
+			Scalar(0, signalColorSegmentationLowerSaturation, signalColorSegmentationLowerValue),
+			Scalar(signalColorSegmentationUpperHue, signalColorSegmentationUpperSaturation, signalColorSegmentationUpperValue),
 			lowerRange);
 	
 		Mat higherRange;
 		cv::inRange(preprocessedImage,
-			Scalar(colorSegmentationLowerHue, colorSegmentationLowerSaturation, colorSegmentationLowerValue),
-			Scalar(180, colorSegmentationUpperSaturation, colorSegmentationUpperValue),
+			Scalar(signalColorSegmentationLowerHue, signalColorSegmentationLowerSaturation, signalColorSegmentationLowerValue),
+			Scalar(180, signalColorSegmentationUpperSaturation, signalColorSegmentationUpperValue),
 			higherRange);
 
 		cv::bitwise_or(lowerRange, higherRange, colorSegmentation);
 	}
 
+	
+	// apply morphology operations
+	if (signalColorSegmentationMorphKernelSizeX > 0 && signalColorSegmentationMorphKernelSizeY > 0 && signalColorSegmentationMorphIterations > 0) {
+		Point anchor(signalColorSegmentationMorphKernelSizeX, signalColorSegmentationMorphKernelSizeY);
+		Mat structuringElement = getStructuringElement(cv::MORPH_ELLIPSE,
+			cv::Size(2 * signalColorSegmentationMorphKernelSizeX + 1, 2 * signalColorSegmentationMorphKernelSizeY + 1),
+			anchor);
+
+		cv::morphologyEx(colorSegmentation, colorSegmentation,
+			(signalColorSegmentationMorphType == 0? cv::MORPH_OPEN : cv::MORPH_CLOSE),
+			structuringElement, anchor,
+			signalColorSegmentationMorphIterations);
+	}
+
+
 	cvtColor(preprocessedImage, preprocessedImage, CV_HSV2BGR);
 	if (useCVHighGUI) {
-		imshow(WINDOW_NAME_COLOR_SEGMENTATION, colorSegmentation);
+		imshow(WINDOW_NAME_SIGNAL_COLOR_SEGMENTATION, colorSegmentation);
 	}
 
 	return colorSegmentation;
@@ -442,6 +459,21 @@ vector<int> ImageAnalysis::segmentImageByTrafficSignText(Mat& preprocessedImage,
 			Scalar(textColorSegmentationUpperHue, textColorSegmentationUpperSaturation, textColorSegmentationUpperValue),
 			textColorSegmentation);
 
+
+		// apply morphology operations
+		if (textColorSegmentationMorphKernelSizeX > 0 && textColorSegmentationMorphKernelSizeY > 0 && textColorSegmentationMorphIterations > 0) {
+			Point anchor(textColorSegmentationMorphKernelSizeX, textColorSegmentationMorphKernelSizeY);
+			Mat structuringElement = getStructuringElement(cv::MORPH_ELLIPSE,
+				cv::Size(2 * textColorSegmentationMorphKernelSizeX + 1, 2 * textColorSegmentationMorphKernelSizeY + 1),
+				anchor);
+
+			cv::morphologyEx(textColorSegmentation, textColorSegmentation,
+				(textColorSegmentationMorphType == 0? cv::MORPH_OPEN : cv::MORPH_CLOSE),
+				structuringElement, anchor,
+				textColorSegmentationMorphIterations);
+		}
+
+
 		if (useCVHighGUI) {
 			try {
 				ellipseROI.copyTo(imageROIs(ellipseBoundingRect));
@@ -465,7 +497,7 @@ vector<int> ImageAnalysis::segmentImageByTrafficSignText(Mat& preprocessedImage,
 		try {			
 			cvtColor(imageROIs, imageROIs, CV_HSV2BGR);
 			imshow(WINDOW_NAME_SIGNAL_ROI, imageROIs);
-			imshow(WINDOW_NAME_SIGNAL_TEXTS, imageTexts);
+			imshow(WINDOW_NAME_TEXT_COLOR_SEGMENTATION, imageTexts);
 		} catch(...) {}
 	}
 
@@ -497,7 +529,9 @@ int ImageAnalysis::recognizeTrafficSignText(Mat& preprocessedImage, Mat& textCol
 	vector< pair< pair<vector<Point>*, size_t>, Rect> > biggestContours;	
 
 	// extract 3 biggest contours if their area is bigger than ellipseBoundingRectArea * PARAM_TEXT_MIN_PERCENTAGE_IN_SIGN
-	if (contours.size() > 1) {
+	if (contours.size() == 1) {
+		biggestContours.push_back(pair< pair<vector<Point>*, size_t>, Rect>(pair<vector<Point>*, size_t>(&contours[0], 0), boundingRect(contours[0])));
+	} else if (contours.size() > 1) {
 		vector< pair< pair< vector<Point>*, size_t>, double > > contourAreas;
 	
 		// compute contour area
@@ -641,10 +675,10 @@ void ImageAnalysis::setupResultsWindows(bool optionsOneWindow) {
 	//addHighGUIWindow(2, 0, WINDOW_NAME_HISTOGRAM_EQUALIZATION);
 	addHighGUIWindow(2, 0, WINDOW_NAME_HISTOGRAM_EQUALIZATION_CLAHE);
 	addHighGUIWindow(3, 0, WINDOW_NAME_CONTRAST_AND_BRIGHTNESS);
-	addHighGUIWindow(0, 1, WINDOW_NAME_COLOR_SEGMENTATION);
+	addHighGUIWindow(0, 1, WINDOW_NAME_SIGNAL_COLOR_SEGMENTATION);
 	//addHighGUIWindow(1, 1, WINDOW_NAME_SIGNAL_CANNY);
 	addHighGUIWindow(1, 1, WINDOW_NAME_SIGNAL_RECOGNITION);
-	addHighGUIWindow(2, 1, WINDOW_NAME_SIGNAL_TEXTS);
+	addHighGUIWindow(2, 1, WINDOW_NAME_TEXT_COLOR_SEGMENTATION);
 	addHighGUIWindow(3, 1, WINDOW_NAME_SIGNAL_ROI);	
 	
 	if (optionsOneWindow) {		
@@ -653,13 +687,15 @@ void ImageAnalysis::setupResultsWindows(bool optionsOneWindow) {
 		moveWindow(WINDOW_NAME_OPTIONS, screenWidth - WINDOW_OPTIONS_WIDTH, 0);
 	} else {						
 		addHighGUITrackBarWindow(WINDOW_NAME_BILATERAL_FILTER_OPTIONS, 3, 0, 0);
-		addHighGUITrackBarWindow(WINDOW_NAME_HISTOGRAM_EQUALIZATION_CLAHE_OPTIONS, 3, 3, 1);		
-		addHighGUITrackBarWindow(WINDOW_NAME_CONTRAST_AND_BRIGHTNESS_OPTIONS, 2, 6, 2);
-		addHighGUITrackBarWindow(WINDOW_NAME_COLOR_SEGMENTATION_OPTIONS, 6, 8, 3, 2 * WINDOW_FRAME_THICKNESS);
-		addHighGUITrackBarWindow(WINDOW_NAME_SIGNAL_TEXTS_OPTIONS, 6, 8, 3, 0, WINDOW_HEADER_HEIGHT);
+		addHighGUITrackBarWindow(WINDOW_NAME_CONTRAST_AND_BRIGHTNESS_OPTIONS, 2, 3, 1, 0, WINDOW_HEADER_HEIGHT);
+		addHighGUITrackBarWindow(WINDOW_NAME_HISTOGRAM_EQUALIZATION_CLAHE_OPTIONS, 3, 3, 1, 2 * WINDOW_FRAME_THICKNESS);
+		addHighGUITrackBarWindow(WINDOW_NAME_SIGNAL_MORPHOLOGY_OPERATORS_OPTIONS, 4, 6, 2, 0, WINDOW_HEADER_HEIGHT);
+		addHighGUITrackBarWindow(WINDOW_NAME_SIGNAL_COLOR_SEGMENTATION_OPTIONS, 6, 6, 2, 2 * WINDOW_FRAME_THICKNESS);
+		addHighGUITrackBarWindow(WINDOW_NAME_SIGNAL_RECOGNITION_OPTIONS, 6, 12, 3, 2 * WINDOW_FRAME_THICKNESS);
+		addHighGUITrackBarWindow(WINDOW_NAME_TEXT_MORPHOLOGY_OPERATORS_OPTIONS, 4, 12, 3, 0, WINDOW_HEADER_HEIGHT);
+		addHighGUITrackBarWindow(WINDOW_NAME_TEXT_COLOR_SEGMENTATION_OPTIONS, 6, 12, 3, 0, 2 * WINDOW_HEADER_HEIGHT);
 		/*addHighGUITrackBarWindow(WINDOW_NAME_SIGNAL_CANNY_OPTIONS, 3, 14, 4);
-		addHighGUITrackBarWindow(WINDOW_NAME_SIGNAL_RECOGNITION_OPTIONS, 6, 17, 5);*/
-		addHighGUITrackBarWindow(WINDOW_NAME_SIGNAL_RECOGNITION_OPTIONS, 6, 14, 4);
+		addHighGUITrackBarWindow(WINDOW_NAME_SIGNAL_RECOGNITION_OPTIONS, 6, 17, 5);*/		
 	}	
 	
 	cv::createTrackbar(TRACK_BAR_NAME_BI_FILTER_DIST, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_BILATERAL_FILTER_OPTIONS), &bilateralFilterDistance, 100, updateImageAnalysis, (void*)this);
@@ -673,19 +709,16 @@ void ImageAnalysis::setupResultsWindows(bool optionsOneWindow) {
 	cv::createTrackbar(TRACK_BAR_NAME_CONTRAST, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_CONTRAST_AND_BRIGHTNESS_OPTIONS), &contrast, 100, updateImageAnalysis, (void*)this);
 	cv::createTrackbar(TRACK_BAR_NAME_BRIGHTNESS, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_CONTRAST_AND_BRIGHTNESS_OPTIONS), &brightness, 1000, updateImageAnalysis, (void*)this);
 		
-	cv::createTrackbar(TRACK_BAR_NAME_COLOR_SEG_MIN_HUE, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_COLOR_SEGMENTATION_OPTIONS), &colorSegmentationLowerHue, 180, updateImageAnalysis, (void*)this);
-	cv::createTrackbar(TRACK_BAR_NAME_COLOR_SEG_MAX_HUE, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_COLOR_SEGMENTATION_OPTIONS), &colorSegmentationUpperHue, 180, updateImageAnalysis, (void*)this);
-	cv::createTrackbar(TRACK_BAR_NAME_COLOR_SEG_MIN_SAT, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_COLOR_SEGMENTATION_OPTIONS), &colorSegmentationLowerSaturation, 255, updateImageAnalysis, (void*)this);
-	cv::createTrackbar(TRACK_BAR_NAME_COLOR_SEG_MAX_SAT, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_COLOR_SEGMENTATION_OPTIONS), &colorSegmentationUpperSaturation, 255, updateImageAnalysis, (void*)this);
-	cv::createTrackbar(TRACK_BAR_NAME_COLOR_SEG_MIN_VAL, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_COLOR_SEGMENTATION_OPTIONS), &colorSegmentationLowerValue, 255, updateImageAnalysis, (void*)this);
-	cv::createTrackbar(TRACK_BAR_NAME_COLOR_SEG_MAX_VAL, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_COLOR_SEGMENTATION_OPTIONS), &colorSegmentationUpperValue, 255, updateImageAnalysis, (void*)this);
-
-	cv::createTrackbar(TRACK_BAR_NAME_COLOR_SEG_MIN_HUE, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_SIGNAL_TEXTS_OPTIONS), &textColorSegmentationLowerHue, 180, updateImageAnalysis, (void*)this);
-	cv::createTrackbar(TRACK_BAR_NAME_COLOR_SEG_MAX_HUE, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_SIGNAL_TEXTS_OPTIONS), &textColorSegmentationUpperHue, 180, updateImageAnalysis, (void*)this);
-	cv::createTrackbar(TRACK_BAR_NAME_COLOR_SEG_MIN_SAT, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_SIGNAL_TEXTS_OPTIONS), &textColorSegmentationLowerSaturation, 255, updateImageAnalysis, (void*)this);
-	cv::createTrackbar(TRACK_BAR_NAME_COLOR_SEG_MAX_SAT, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_SIGNAL_TEXTS_OPTIONS), &textColorSegmentationUpperSaturation, 255, updateImageAnalysis, (void*)this);
-	cv::createTrackbar(TRACK_BAR_NAME_COLOR_SEG_MIN_VAL, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_SIGNAL_TEXTS_OPTIONS), &textColorSegmentationLowerValue, 255, updateImageAnalysis, (void*)this);
-	cv::createTrackbar(TRACK_BAR_NAME_COLOR_SEG_MAX_VAL, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_SIGNAL_TEXTS_OPTIONS), &textColorSegmentationUpperValue, 255, updateImageAnalysis, (void*)this);
+	cv::createTrackbar(TRACK_BAR_NAME_SIGNAL_COLOR_SEG_MIN_HUE, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_SIGNAL_COLOR_SEGMENTATION_OPTIONS), &signalColorSegmentationLowerHue, 180, updateImageAnalysis, (void*)this);
+	cv::createTrackbar(TRACK_BAR_NAME_SIGNAL_COLOR_SEG_MAX_HUE, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_SIGNAL_COLOR_SEGMENTATION_OPTIONS), &signalColorSegmentationUpperHue, 180, updateImageAnalysis, (void*)this);
+	cv::createTrackbar(TRACK_BAR_NAME_SIGNAL_COLOR_SEG_MIN_SAT, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_SIGNAL_COLOR_SEGMENTATION_OPTIONS), &signalColorSegmentationLowerSaturation, 255, updateImageAnalysis, (void*)this);
+	cv::createTrackbar(TRACK_BAR_NAME_SIGNAL_COLOR_SEG_MAX_SAT, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_SIGNAL_COLOR_SEGMENTATION_OPTIONS), &signalColorSegmentationUpperSaturation, 255, updateImageAnalysis, (void*)this);
+	cv::createTrackbar(TRACK_BAR_NAME_SIGNAL_COLOR_SEG_MIN_VAL, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_SIGNAL_COLOR_SEGMENTATION_OPTIONS), &signalColorSegmentationLowerValue, 255, updateImageAnalysis, (void*)this);
+	cv::createTrackbar(TRACK_BAR_NAME_SIGNAL_COLOR_SEG_MAX_VAL, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_SIGNAL_COLOR_SEGMENTATION_OPTIONS), &signalColorSegmentationUpperValue, 255, updateImageAnalysis, (void*)this);
+	cv::createTrackbar(TRACK_BAR_NAME_SIGNAL_MORPH_OPERATOR, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_SIGNAL_MORPHOLOGY_OPERATORS_OPTIONS), &signalColorSegmentationMorphType, 1, updateImageAnalysis, (void*)this);
+	cv::createTrackbar(TRACK_BAR_NAME_SIGNAL_MORPH_KERNEL_SIZE_X, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_SIGNAL_MORPHOLOGY_OPERATORS_OPTIONS), &signalColorSegmentationMorphKernelSizeX, 20, updateImageAnalysis, (void*)this);
+	cv::createTrackbar(TRACK_BAR_NAME_SIGNAL_MORPH_KERNEL_SIZE_Y, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_SIGNAL_MORPHOLOGY_OPERATORS_OPTIONS), &signalColorSegmentationMorphKernelSizeY, 20, updateImageAnalysis, (void*)this);
+	cv::createTrackbar(TRACK_BAR_NAME_SIGNAL_MORPH_ITERATIONS, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_SIGNAL_MORPHOLOGY_OPERATORS_OPTIONS), &signalColorSegmentationMorphIterations, 20, updateImageAnalysis, (void*)this);
 
 	/*cv::createTrackbar(TRACK_BAR_NAME_CANNY_LOWER_HYSTERESIS_THRESHOLD, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_SIGNAL_CANNY_OPTIONS), &cannyLowerHysteresisThreshold, 100, updateImageAnalysis, (void*)this);
 	cv::createTrackbar(TRACK_BAR_NAME_CANNY_HIGHER_HYSTERESIS_THRESHOLD, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_SIGNAL_CANNY_OPTIONS), &cannyHigherHysteresisThreshold, 300, updateImageAnalysis, (void*)this);
@@ -697,6 +730,17 @@ void ImageAnalysis::setupResultsWindows(bool optionsOneWindow) {
 	cv::createTrackbar(TRACK_BAR_NAME_HOUGH_CIRCLES_ACCUMULATOR_THRESHOLD, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_SIGNAL_RECOGNITION_OPTIONS), &houghCirclesAccumulatorThreshold, 250, updateImageAnalysis, (void*)this);
 	cv::createTrackbar(TRACK_BAR_NAME_HOUGH_CIRCLES_MIN_RADIUS, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_SIGNAL_RECOGNITION_OPTIONS), &houghCirclesMinRadius, 100, updateImageAnalysis, (void*)this);
 	cv::createTrackbar(TRACK_BAR_NAME_HOUGH_CIRCLES_MAX_RADIUS, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_SIGNAL_RECOGNITION_OPTIONS), &houghCirclesMaxRadius, 100, updateImageAnalysis, (void*)this);
+
+	cv::createTrackbar(TRACK_BAR_NAME_TEXT_COLOR_SEG_MIN_HUE, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_TEXT_COLOR_SEGMENTATION_OPTIONS), &textColorSegmentationLowerHue, 180, updateImageAnalysis, (void*)this);
+	cv::createTrackbar(TRACK_BAR_NAME_TEXT_COLOR_SEG_MAX_HUE, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_TEXT_COLOR_SEGMENTATION_OPTIONS), &textColorSegmentationUpperHue, 180, updateImageAnalysis, (void*)this);
+	cv::createTrackbar(TRACK_BAR_NAME_TEXT_COLOR_SEG_MIN_SAT, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_TEXT_COLOR_SEGMENTATION_OPTIONS), &textColorSegmentationLowerSaturation, 255, updateImageAnalysis, (void*)this);
+	cv::createTrackbar(TRACK_BAR_NAME_TEXT_COLOR_SEG_MAX_SAT, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_TEXT_COLOR_SEGMENTATION_OPTIONS), &textColorSegmentationUpperSaturation, 255, updateImageAnalysis, (void*)this);
+	cv::createTrackbar(TRACK_BAR_NAME_TEXT_COLOR_SEG_MIN_VAL, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_TEXT_COLOR_SEGMENTATION_OPTIONS), &textColorSegmentationLowerValue, 255, updateImageAnalysis, (void*)this);
+	cv::createTrackbar(TRACK_BAR_NAME_TEXT_COLOR_SEG_MAX_VAL, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_TEXT_COLOR_SEGMENTATION_OPTIONS), &textColorSegmentationUpperValue, 255, updateImageAnalysis, (void*)this);
+	cv::createTrackbar(TRACK_BAR_NAME_TEXT_MORPH_OPERATOR, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_TEXT_MORPHOLOGY_OPERATORS_OPTIONS), &textColorSegmentationMorphType, 1, updateImageAnalysis, (void*)this);
+	cv::createTrackbar(TRACK_BAR_NAME_TEXT_MORPH_KERNEL_SIZE_X, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_TEXT_MORPHOLOGY_OPERATORS_OPTIONS), &textColorSegmentationMorphKernelSizeX, 20, updateImageAnalysis, (void*)this);
+	cv::createTrackbar(TRACK_BAR_NAME_TEXT_MORPH_KERNEL_SIZE_Y, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_TEXT_MORPHOLOGY_OPERATORS_OPTIONS), &textColorSegmentationMorphKernelSizeY, 20, updateImageAnalysis, (void*)this);
+	cv::createTrackbar(TRACK_BAR_NAME_TEXT_MORPH_ITERATIONS, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_TEXT_MORPHOLOGY_OPERATORS_OPTIONS), &textColorSegmentationMorphIterations, 20, updateImageAnalysis, (void*)this);
 }
 
 
