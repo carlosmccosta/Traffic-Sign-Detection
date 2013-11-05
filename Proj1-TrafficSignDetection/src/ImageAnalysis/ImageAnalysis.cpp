@@ -72,14 +72,13 @@ bool ImageAnalysis::processImage(Mat& image, bool useCVHighGUI) {
 
 	preprocessedImage = image.clone();	
 	preprocessImage(preprocessedImage, useCVHighGUI);
+
 	Mat preprocessedImageClone = preprocessedImage.clone();
 
 	Mat imageColorSegmented = segmentImageByTrafficSignColor(preprocessedImage, useCVHighGUI);	
 	vector< pair<Rect, RotatedRect> > recognizedEllipsis;
-	recognizeTrafficSignsEllipsis(imageColorSegmented, preprocessedImage, recognizedEllipsis, useCVHighGUI);
-	
-	vector< pair< pair<Rect, RotatedRect>, vector<Rect> > > trafficSignsTextsSegments;
-	segmentImageByTrafficSignText(preprocessedImageClone, recognizedEllipsis, trafficSignsTextsSegments, useCVHighGUI);
+	recognizeTrafficSignsEllipsis(imageColorSegmented, preprocessedImage, recognizedEllipsis, useCVHighGUI);		
+	segmentImageByTrafficSignText(preprocessedImageClone, recognizedEllipsis, useCVHighGUI);
 
 
 	processedImage = preprocessedImage;
@@ -106,6 +105,8 @@ void ImageAnalysis::preprocessImage(Mat& image, bool useCVHighGUI ) {
 
 	// increase contrast and brightness to improve detection of numbers inside traffic sign
 	image.convertTo(image, -1, (double)contrast / 10.0, (double)brightness / 10.0);
+
+	cv::bilateralFilter(image.clone(), image, bilateralFilterDistance, bilateralFilterSigmaColor, bilateralFilterSigmaSpace);
 	if (useCVHighGUI) {
 		imshow(WINDOW_NAME_CONTRAST_AND_BRIGHTNESS, image);	
 	}
@@ -212,8 +213,8 @@ void ImageAnalysis::recognizeTrafficSignsEllipsis(Mat& colorSegmentedImage, Mat&
 			Point center(cvRound(houghCirclesFiltered[i][0]), cvRound(houghCirclesFiltered[i][1]));
 			int radius = cvRound(houghCirclesFiltered[i][2]);
 
-			circle(preprocessedImage, center, 1, Scalar(255,0,0), 2);
-			circle(preprocessedImage, center, radius, Scalar(255,0,0), 2);
+			circle(preprocessedImage, center, 1, COLOR_HOUGH_CIRCLES_BGR, 2);
+			circle(preprocessedImage, center, radius, COLOR_HOUGH_CIRCLES_BGR, 2);
 		}
 	}
 	
@@ -363,7 +364,7 @@ void ImageAnalysis::retrieveEllipsisFromHoughCircles(const Mat& colorSegmentedIm
 		
 		try {
 			Mat circleROI = colorSegmentedImageContours.clone()(Rect(roiX, roiY, roiWidth, roiHeight));
-			vector<vector<Point> > contours;		
+			vector<vector<Point> > contours;
 				
 			cv::findContours(circleROI, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE, Point(roiX, roiY));
 
@@ -391,17 +392,17 @@ void ImageAnalysis::retrieveEllipsisFromHoughCircles(const Mat& colorSegmentedIm
 					ellipseBoundingRect.height = std::min(ellipseBoundingRect.height, imageHeight - ellipseBoundingRect.y);
 					
 					// ellipse center must be inside hough transform circle
-					/*int dx = cvRound(ellipseFound.center.x - currentCircleCenterX);
+					int dx = cvRound(ellipseFound.center.x - currentCircleCenterX);
 					int dy = cvRound(ellipseFound.center.y - currentCircleCenterY);
-					if (sqrt(dx*dx + dy*dy) < currentCircleRadius) {*/
+					if (sqrt(dx*dx + dy*dy) < currentCircleRadius) {
 						outputTrafficSignEllipsis.push_back(pair<Rect, RotatedRect>(ellipseBoundingRect, ellipseFound));
 
 						if (useCVHighGUI) {						
-							circle(preprocessedImage, ellipseFound.center, 1, Scalar(0,255,0), 2);
-							ellipse(preprocessedImage, ellipseFound, Scalar(0,255,0), 2);
-							rectangle(preprocessedImage, ellipseBoundingRect, Scalar(0,255,0), 2);
+							circle(preprocessedImage, ellipseFound.center, 1, COLOR_ELLIPSIS_BGR, 2);
+							ellipse(preprocessedImage, ellipseFound, COLOR_ELLIPSIS_BGR, 2);
+							rectangle(preprocessedImage, ellipseBoundingRect, COLOR_ELLIPSIS_BGR, 2);
 						}
-					/*}*/
+					}
 				}
 			}
 		} catch (...) { }
@@ -409,7 +410,7 @@ void ImageAnalysis::retrieveEllipsisFromHoughCircles(const Mat& colorSegmentedIm
 }
 
 
-void ImageAnalysis::segmentImageByTrafficSignText(Mat& preprocessedImage, vector< pair<Rect, RotatedRect> >& trafficSignEllipsis, vector< pair< pair<Rect, RotatedRect>, vector<Rect> > >& outputTrafficSignsTextsSegments, bool useCVHighGUI) {		
+vector<int> ImageAnalysis::segmentImageByTrafficSignText(Mat& preprocessedImage, vector< pair<Rect, RotatedRect> >& trafficSignEllipsis, bool useCVHighGUI) {			
 	Mat imageHSV;
 	cvtColor(preprocessedImage, imageHSV, CV_BGR2HSV);
 	Mat imageROIs(imageHSV.rows, imageHSV.cols, imageHSV.type(), Scalar(0,0,255));
@@ -441,13 +442,23 @@ void ImageAnalysis::segmentImageByTrafficSignText(Mat& preprocessedImage, vector
 			Scalar(textColorSegmentationUpperHue, textColorSegmentationUpperSaturation, textColorSegmentationUpperValue),
 			textColorSegmentation);
 
-		
 		if (useCVHighGUI) {
-			try {				
+			try {
 				ellipseROI.copyTo(imageROIs(ellipseBoundingRect));
 				textColorSegmentation.copyTo(imageTexts(ellipseBoundingRect));
 			} catch(...) {}
 		}
+
+		int detectedSign = recognizeTrafficSignText(imageROIs, textColorSegmentation, ellipseBoundingRect, useCVHighGUI);
+		if (detectedSign > 0 && detectedSign % 5 == 0) {
+			detectedSigns.push_back(detectedSign);
+
+			if (useCVHighGUI) {
+				stringstream ss;
+				ss << detectedSign;
+				drawTrafficSignLabel(ss.str(), imageROIs, ellipseBoundingRect);
+			}
+		}		
 	}
 
 	if (useCVHighGUI) {
@@ -457,8 +468,73 @@ void ImageAnalysis::segmentImageByTrafficSignText(Mat& preprocessedImage, vector
 			imshow(WINDOW_NAME_SIGNAL_TEXTS, imageTexts);
 		} catch(...) {}
 	}
+
+	return detectedSigns;
 }
 
+
+bool sortContourAreas(const pair< pair< vector<Point>*, size_t>, double >& left, const pair< pair< vector<Point>*, size_t>, double >& right) {
+	return left.second > right.second;
+}
+
+
+bool sortContourByHorizontalPosition(const pair< pair<vector<Point>*, size_t>, Rect>& left, const pair< pair<vector<Point>*, size_t>, Rect>& right) {
+	return left.second.x < right.second.x;
+}
+
+
+int ImageAnalysis::recognizeTrafficSignText(Mat& preprocessedImage, Mat& textColorSegmentation, const Rect& ellipseBoundingRect, bool useCVHighGUI) {
+	vector<vector<Point> > contours;
+	int roiX = ellipseBoundingRect.x;
+	int roiY = ellipseBoundingRect.y;
+
+	cv::findContours(textColorSegmentation.clone(), contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE, Point(roiX, roiY));
+
+	if (contours.empty()) {
+		return -1;
+	}
+
+	vector< pair< pair<vector<Point>*, size_t>, Rect> > biggestContours;	
+
+	// extract 3 biggest contours if their area is bigger than ellipseBoundingRectArea * PARAM_TEXT_MIN_PERCENTAGE_IN_SIGN
+	if (contours.size() > 1) {
+		vector< pair< pair< vector<Point>*, size_t>, double > > contourAreas;
+	
+		// compute contour area
+		for (size_t contourPos = 0; contourPos < contours.size(); ++contourPos) {
+			vector<Point>* currentContour = &(contours[contourPos]);
+			double currentContourArea = cv::contourArea(*currentContour);
+			contourAreas.push_back(pair< pair< vector<Point>*, size_t>, double >(pair< vector<Point>*, size_t>(currentContour, contourPos), currentContourArea));
+		}
+
+		sort(contourAreas.begin(), contourAreas.end(), sortContourAreas);
+
+		double ellipseBoundingRectArea = ellipseBoundingRect.width * ellipseBoundingRect.height;
+		double minAreaForSignText = ellipseBoundingRectArea * PARAM_TEXT_MIN_PERCENTAGE_IN_SIGN;
+		
+		// extract 3 biggest contours
+		for (size_t contourAreasPos = 0; contourAreasPos < 3 && contourAreasPos < contourAreas.size(); ++contourAreasPos) {
+			pair< pair< vector<Point>*, size_t>, double >& currentBiggestContour = contourAreas[contourAreasPos];
+			if (currentBiggestContour.second > minAreaForSignText) {								
+				biggestContours.push_back(pair< pair<vector<Point>*, size_t>, Rect>(currentBiggestContour.first, boundingRect(*(currentBiggestContour.first.first))));
+			}
+		}
+		
+		// sort contours by their horizontal position
+		sort(biggestContours.begin(), biggestContours.end(), sortContourByHorizontalPosition);
+	}
+
+
+	if (useCVHighGUI) {
+		for (size_t biggestContoursPos = 0; biggestContoursPos < biggestContours.size(); ++biggestContoursPos) {
+			rectangle(preprocessedImage, biggestContours[biggestContoursPos].second, COLOR_TEXT_HSV, 2);
+			drawContours(preprocessedImage, contours, biggestContours[biggestContoursPos].first.second, COLOR_TEXT_HSV, 2);
+		}
+	}
+	
+
+	return 120;
+}
 
 
 bool ImageAnalysis::updateImage() {
@@ -535,6 +611,26 @@ void updateImageAnalysis(int position, void* userData) {
 }
 
 
+void ImageAnalysis::drawTrafficSignLabel(string text, Mat& image, const Rect& signBoundingRect) {
+	int textBoxHeight = (int)(signBoundingRect.height * 0.15);
+	int fontface = cv::FONT_HERSHEY_SIMPLEX;
+	double scale = (double)textBoxHeight / 46.0;
+	int thickness = std::max(1, (int)(textBoxHeight * 0.05));
+	int baseline = 0;
+
+	Rect textBoundingRect = signBoundingRect;
+	textBoundingRect.height = std::max(textBoxHeight, TEXT_MIN_SIZE);
+	//textBoundingRect.y -= textBoundingRect.height;
+
+	cv::Size textSize = cv::getTextSize(text, fontface, scale, thickness, &baseline);
+	cv::Point textBottomLeftPoint(textBoundingRect.x + (textBoundingRect.width - textSize.width) / 2, textBoundingRect.y + (textBoundingRect.height + textSize.height) / 2);
+
+	cv::rectangle(image, signBoundingRect, COLOR_LABEL_BOX_HSV, 2);
+	cv::rectangle(image, textBoundingRect, COLOR_LABEL_BOX_HSV, 2);
+	cv::putText(image, text, textBottomLeftPoint, fontface, scale, COLOR_LABEL_TEXT_HSV, thickness);
+}
+
+
 void ImageAnalysis::setupMainWindow() {
 	addHighGUIWindow(0, 0, WINDOW_NAME_MAIN);	
 }
@@ -548,8 +644,8 @@ void ImageAnalysis::setupResultsWindows(bool optionsOneWindow) {
 	addHighGUIWindow(0, 1, WINDOW_NAME_COLOR_SEGMENTATION);
 	//addHighGUIWindow(1, 1, WINDOW_NAME_SIGNAL_CANNY);
 	addHighGUIWindow(1, 1, WINDOW_NAME_SIGNAL_RECOGNITION);
-	addHighGUIWindow(2, 1, WINDOW_NAME_SIGNAL_ROI);
-	addHighGUIWindow(3, 1, WINDOW_NAME_SIGNAL_TEXTS);
+	addHighGUIWindow(2, 1, WINDOW_NAME_SIGNAL_TEXTS);
+	addHighGUIWindow(3, 1, WINDOW_NAME_SIGNAL_ROI);	
 	
 	if (optionsOneWindow) {		
 		namedWindow(WINDOW_NAME_OPTIONS, CV_WINDOW_NORMAL);

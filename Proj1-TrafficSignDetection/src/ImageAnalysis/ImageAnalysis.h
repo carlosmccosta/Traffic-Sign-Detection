@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <sstream>
 #include <vector>
 #include <algorithm>
 #include <opencv2/core/core.hpp>
@@ -8,6 +9,7 @@
 #include <opencv2/highgui/highgui.hpp>
 
 using std::string;
+using std::stringstream;
 using std::vector;
 using std::map;
 using std::pair;
@@ -28,7 +30,17 @@ using cv::circle;
 using cv::ellipse;
 using cv::rectangle;
 
+#define TEXT_MIN_SIZE 12
+
 #define PARAM_FIT_ELLIPSIS_SCALE_FOR_HOUGH_CIRCLE 1.50
+#define PARAM_TEXT_MIN_PERCENTAGE_IN_SIGN 0.01
+
+#define COLOR_HOUGH_CIRCLES_BGR Scalar(255,0,0)
+#define COLOR_ELLIPSIS_BGR Scalar(0,255,0)
+#define COLOR_IMAGE_ROI_BACKGROUND_HSV Scalar(0,0,255)
+#define COLOR_TEXT_HSV Scalar(30, 255, 255)
+#define COLOR_LABEL_BOX_HSV Scalar(45,255,255)
+#define COLOR_LABEL_TEXT_HSV Scalar(45,255,255)
 
 #define WINDOW_NAME_MAIN "0. Original image"
 #define WINDOW_NAME_OPTIONS "Parameterization"
@@ -37,7 +49,7 @@ using cv::rectangle;
 #define WINDOW_NAME_HISTOGRAM_EQUALIZATION "2. Global histogram equalization (not used)"
 #define WINDOW_NAME_HISTOGRAM_EQUALIZATION_CLAHE "2. Histogram equalization CLAHE"
 #define WINDOW_NAME_HISTOGRAM_EQUALIZATION_CLAHE_OPTIONS "2.1. Histogram equalization CLAHE options"
-#define WINDOW_NAME_CONTRAST_AND_BRIGHTNESS "3. Contrast and brightness"
+#define WINDOW_NAME_CONTRAST_AND_BRIGHTNESS "3. Contrast and brightness and bilateral filtering"
 #define WINDOW_NAME_CONTRAST_AND_BRIGHTNESS_OPTIONS "3.1. Contrast and brightness options"
 #define WINDOW_NAME_COLOR_SEGMENTATION "4. Color segmentation"
 #define WINDOW_NAME_COLOR_SEGMENTATION_OPTIONS "4.1. Color segmentation configuration"
@@ -45,9 +57,9 @@ using cv::rectangle;
 #define WINDOW_NAME_SIGNAL_CANNY_OPTIONS "5.1. Canny edge detector options"
 #define WINDOW_NAME_SIGNAL_RECOGNITION "6. Signal circle and ellipse recognition"
 #define WINDOW_NAME_SIGNAL_RECOGNITION_OPTIONS "6.1. Signal recognition options"
-#define WINDOW_NAME_SIGNAL_ROI "7. Traffic signals ROIs"
-#define WINDOW_NAME_SIGNAL_TEXTS "8. Traffic signals texts"
-#define WINDOW_NAME_SIGNAL_TEXTS_OPTIONS "8.1. Traffic signals texts options"
+#define WINDOW_NAME_SIGNAL_TEXTS "7. Traffic signals texts"
+#define WINDOW_NAME_SIGNAL_TEXTS_OPTIONS "7.1. Traffic signals texts options"
+#define WINDOW_NAME_SIGNAL_ROI "8. Traffic signals ROIs"
 
 #define TRACK_BAR_NAME_BI_FILTER_DIST "1Dist"
 #define TRACK_BAR_NAME_BI_FILTER_COLOR_SIG "1Color Sig"
@@ -101,8 +113,8 @@ class ImageAnalysis {
 		bool aggregateCircleIntoClusters(vector< vector<Vec3f> >& houghCirclesClusters, const Vec3f& centerToAdd);
 		void retrieveEllipsisFromHoughCircles(const Mat& colorSegmentedImage, const vector<Vec3f>& houghCirclesFiltered, vector<pair<Rect, RotatedRect> >& outputTrafficSignEllipsis, bool useCVHighGUI = true);
 		
-		void segmentImageByTrafficSignText(Mat& preprocessedImage, vector< pair<Rect, RotatedRect> >& trafficSignEllipsis, vector< pair< pair<Rect, RotatedRect>, vector<Rect> > >& outputTrafficSignsTextsSegments, bool useCVHighGUI = true);
-
+		vector<int> segmentImageByTrafficSignText(Mat& preprocessedImage, vector< pair<Rect, RotatedRect> >& trafficSignEllipsis, bool useCVHighGUI = true);
+		int recognizeTrafficSignText(Mat& preprocessedImage, Mat& textColorSegmentation, const Rect& ellipseBoundingRect, bool useCVHighGUI = true);
 
 		bool updateImage();
 		
@@ -110,6 +122,8 @@ class ImageAnalysis {
 		bool processVideo(int cameraDeviceNumber, bool useCVHighGUI = true);
 		bool processVideo(VideoCapture videoCapture, bool useCVHighGUI = true);
 		
+		void drawTrafficSignLabel(string text, Mat& image, const Rect& signBoundingRect);
+
 		void setupMainWindow();
 		void setupResultsWindows(bool optionsOneWindow = false);
 		bool outputResults();		
@@ -118,7 +132,7 @@ class ImageAnalysis {
 		pair<int, int> addHighGUITrackBarWindow(string windowName, int numberTrackBars, int cumulativeTrackBarPosition, int trackBarWindowNumber, int xOffset = 0, int yOffset = 0);
 
 	private:
-		vector<string> detectedSigns;
+		vector<int> detectedSigns;
 		Mat originalImage;
 		Mat preprocessedImage;
 		Mat processedImage;
