@@ -528,7 +528,7 @@ int ImageAnalysis::recognizeTrafficSignText(Mat& preprocessedImage, Mat& textCol
 
 	vector< pair< pair<vector<Point>*, size_t>, Rect> > biggestContours;	
 
-	// extract 3 biggest contours if their area is bigger than ellipseBoundingRectArea * PARAM_TEXT_MIN_PERCENTAGE_IN_SIGN
+	// extract 3 biggest contours if their area and height is acceptable
 	if (contours.size() == 1) {
 		biggestContours.push_back(pair< pair<vector<Point>*, size_t>, Rect>(pair<vector<Point>*, size_t>(&contours[0], 0), boundingRect(contours[0])));
 	} else if (contours.size() > 1) {
@@ -544,30 +544,65 @@ int ImageAnalysis::recognizeTrafficSignText(Mat& preprocessedImage, Mat& textCol
 		sort(contourAreas.begin(), contourAreas.end(), sortContourAreas);
 
 		double ellipseBoundingRectArea = ellipseBoundingRect.width * ellipseBoundingRect.height;
-		double minAreaForSignText = ellipseBoundingRectArea * PARAM_TEXT_MIN_PERCENTAGE_IN_SIGN;
+		double minAreaForTrafficSignText = ellipseBoundingRectArea * PARAM_TEXT_MIN_AREA_PERCENTAGE_IN_SIGN;
+		int minHeightForTrafficSignText = (int)(ellipseBoundingRect.height * PARAM_TEXT_MIN_HEIGHT_PERCENTAGE_IN_SIGN);
 		
 		// extract 3 biggest contours
 		for (size_t contourAreasPos = 0; contourAreasPos < 3 && contourAreasPos < contourAreas.size(); ++contourAreasPos) {
 			pair< pair< vector<Point>*, size_t>, double >& currentBiggestContour = contourAreas[contourAreasPos];
-			if (currentBiggestContour.second > minAreaForSignText) {								
-				biggestContours.push_back(pair< pair<vector<Point>*, size_t>, Rect>(currentBiggestContour.first, boundingRect(*(currentBiggestContour.first.first))));
+			if (currentBiggestContour.second > minAreaForTrafficSignText) {								
+				Rect currentBiggestContourBoundingRect = boundingRect(*(currentBiggestContour.first.first));
+				if (currentBiggestContourBoundingRect.height > minHeightForTrafficSignText) {
+					biggestContours.push_back(pair< pair<vector<Point>*, size_t>, Rect>(currentBiggestContour.first, currentBiggestContourBoundingRect));
+				}
 			}
 		}
 		
 		// sort contours by their horizontal position
 		sort(biggestContours.begin(), biggestContours.end(), sortContourByHorizontalPosition);
 	}
+	
+	stringstream trafficSignNumberSS;
+	int numberOfDigits = 0;
+	for (size_t biggestContoursPos = 0; biggestContoursPos < biggestContours.size(); ++biggestContoursPos) {		
+		Rect digitRect = biggestContours[biggestContoursPos].second;		
+		
+		if (useCVHighGUI) {
+			try {
+				rectangle(preprocessedImage, digitRect, COLOR_TEXT_HSV, 2);
+				drawContours(preprocessedImage, contours, biggestContours[biggestContoursPos].first.second, COLOR_TEXT_HSV, 2);
+			} catch(...) {}
+		}
 
+		// adjust roi offsets from preprocessedImage to textColorSegmentation
+		digitRect.x = std::max(digitRect.x - roiX, 0);
+		digitRect.y = std::max(digitRect.y - roiY, 0);
+		Mat textColorSegmentationDigitROI = textColorSegmentation(digitRect);
 
-	if (useCVHighGUI) {
-		for (size_t biggestContoursPos = 0; biggestContoursPos < biggestContours.size(); ++biggestContoursPos) {
-			rectangle(preprocessedImage, biggestContours[biggestContoursPos].second, COLOR_TEXT_HSV, 2);
-			drawContours(preprocessedImage, contours, biggestContours[biggestContoursPos].first.second, COLOR_TEXT_HSV, 2);
+		int recognizedDigit = recognizeDigitWithTemplateMatching(textColorSegmentationDigitROI);
+		if (recognizedDigit >= 0 && recognizedDigit < 10) {
+			trafficSignNumberSS << recognizedDigit;
+			++numberOfDigits;
 		}
 	}
 	
+	if (numberOfDigits > 0) {
+		int trafficSignNumber = -1;
+		trafficSignNumberSS >> trafficSignNumber;
+		if (trafficSignNumber >= 10 * (numberOfDigits - 1)) {
+			return trafficSignNumber;
+		}
+	}
 
 	return 120;
+}
+
+
+
+int ImageAnalysis::recognizeDigitWithTemplateMatching(Mat& textColorSegmentationDigitROI) {
+	int digit = 0;
+
+	return digit;
 }
 
 

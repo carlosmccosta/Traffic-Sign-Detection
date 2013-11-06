@@ -29,15 +29,16 @@ Segmentation
 	+ Isolate red regions (use hsv color space)	
 	- Extract edges (Canny - http://docs.opencv.org/doc/tutorials/imgproc/imgtrans/canny_detector/canny_detector.html#canny-detector)
 	+ Detect circles with help of hough transform (HoughCircles - http://docs.opencv.org/doc/tutorials/imgproc/imgtrans/hough_circle/hough_circle.html#hough-circle)
-	+ Isolate possible sign blobs and resise then
+	+ Improve noise removal with morphological operators (opening and closing)
+	+ Isolate possible sign blobs
 	- Use ransac algorithm to extract lines from a group of points
 	- Correct feature points variation with Mahalanobis distance
 
 
 Speed limit recognition
 	+ Traffic sign numbers
-		+ Threshold to binarize image
-		+ Use opening (erode + dilate) morphological operation (http://docs.opencv.org/doc/tutorials/imgproc/erosion_dilatation/erosion_dilatation.html#morphology-1)
+		+ Color segmentation to binarize image
+		+ Use morphological operations to improve blob agregation (http://docs.opencv.org/doc/tutorials/imgproc/erosion_dilatation/erosion_dilatation.html#morphology-1)
 		+ Bounding boxes (boundRect - http://docs.opencv.org/doc/tutorials/imgproc/shapedescriptors/bounding_rects_circles/bounding_rects_circles.html#bounding-rects-circles)
 		- convexHull (http://docs.opencv.org/doc/tutorials/imgproc/shapedescriptors/hull/hull.html#hull)
 	+ Template matching (http://docs.opencv.org/doc/tutorials/imgproc/histograms/template_matching/template_matching.html#template-matching)

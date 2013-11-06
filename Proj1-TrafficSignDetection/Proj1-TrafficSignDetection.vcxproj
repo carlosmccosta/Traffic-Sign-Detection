@@ -83,8 +83,28 @@
   <ItemGroup>
     <None Include=".gitattributes" />
     <None Include=".gitignore" />
+    <None Include="imgs\digits\0.psd" />
+    <None Include="imgs\digits\1.psd" />
+    <None Include="imgs\digits\2.psd" />
+    <None Include="imgs\digits\3.psd" />
+    <None Include="imgs\digits\4.psd" />
+    <None Include="imgs\digits\5.psd" />
+    <None Include="imgs\digits\6.psd" />
+    <None Include="imgs\digits\7.psd" />
+    <None Include="imgs\digits\8.psd" />
+    <None Include="imgs\digits\9.psd" />
   </ItemGroup>
   <ItemGroup>
+    <Image Include="imgs\digits\0.png" />
+    <Image Include="imgs\digits\1.png" />
+    <Image Include="imgs\digits\2.png" />
+    <Image Include="imgs\digits\3.png" />
+    <Image Include="imgs\digits\4.png" />
+    <Image Include="imgs\digits\5.png" />
+    <Image Include="imgs\digits\6.png" />
+    <Image Include="imgs\digits\7.png" />
+    <Image Include="imgs\digits\8.png" />
+    <Image Include="imgs\digits\9.png" />
     <Image Include="imgs\hsv\hsv.png" />
     <Image Include="imgs\hsv\hsv360_v0.0.jpg" />
     <Image Include="imgs\hsv\hsv360_v0.1.jpg" />

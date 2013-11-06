@@ -42,6 +42,16 @@
   <ItemGroup>
     <None Include=".gitattributes" />
     <None Include=".gitignore" />
+    <None Include="imgs\digits\0.psd" />
+    <None Include="imgs\digits\1.psd" />
+    <None Include="imgs\digits\2.psd" />
+    <None Include="imgs\digits\3.psd" />
+    <None Include="imgs\digits\4.psd" />
+    <None Include="imgs\digits\5.psd" />
+    <None Include="imgs\digits\6.psd" />
+    <None Include="imgs\digits\7.psd" />
+    <None Include="imgs\digits\8.psd" />
+    <None Include="imgs\digits\9.psd" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="imgs\hsv\hsv.png">
@@ -78,6 +88,36 @@
       <Filter>Resource Files</Filter>
     </Image>
     <Image Include="imgs\hsv\hsv360_v1.0.jpg">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="imgs\digits\0.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="imgs\digits\1.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="imgs\digits\2.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="imgs\digits\3.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="imgs\digits\4.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="imgs\digits\5.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="imgs\digits\6.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="imgs\digits\7.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="imgs\digits\8.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="imgs\digits\9.png">
       <Filter>Resource Files</Filter>
     </Image>
   </ItemGroup>

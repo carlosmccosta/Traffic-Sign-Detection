@@ -33,7 +33,8 @@ using cv::rectangle;
 #define TEXT_MIN_SIZE 12
 
 #define PARAM_FIT_ELLIPSIS_SCALE_FOR_HOUGH_CIRCLE 1.50
-#define PARAM_TEXT_MIN_PERCENTAGE_IN_SIGN 0.01
+#define PARAM_TEXT_MIN_AREA_PERCENTAGE_IN_SIGN 0.01
+#define PARAM_TEXT_MIN_HEIGHT_PERCENTAGE_IN_SIGN 0.27
 
 #define COLOR_HOUGH_CIRCLES_BGR Scalar(255,0,0)
 #define COLOR_ELLIPSIS_BGR Scalar(0,255,0)
@@ -132,6 +133,7 @@ class ImageAnalysis {
 		
 		vector<int> segmentImageByTrafficSignText(Mat& preprocessedImage, vector< pair<Rect, RotatedRect> >& trafficSignEllipsis, bool useCVHighGUI = true);
 		int recognizeTrafficSignText(Mat& preprocessedImage, Mat& textColorSegmentation, const Rect& ellipseBoundingRect, bool useCVHighGUI = true);
+		int recognizeDigitWithTemplateMatching(Mat& textColorSegmentationDigitROI);
 
 		bool updateImage();
 		
