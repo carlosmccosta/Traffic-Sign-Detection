@@ -19,7 +19,15 @@ ImageAnalysis::ImageAnalysis() :
 	cannyLowerHysteresisThreshold(100), cannyHigherHysteresisThreshold(200), cannySobelOperatorKernelSize(3),
 	houghCirclesDP(1), houghCirclesMinDistanceCenters(2),
 	houghCirclesCannyHigherThreshold(200), houghCirclesAccumulatorThreshold(25),
-	houghCirclesMinRadius(1), houghCirclesMaxRadius(100) {};
+	houghCirclesMinRadius(1), houghCirclesMaxRadius(100) {
+
+		for(size_t number = 0; number < 10; ++number) {
+			stringstream pathToImage;
+			pathToImage << PATH_IMAGES_DIGITS_TEMPLATES << number << ".png";
+			Mat digitImageTemplate = imread(pathToImage.str(), CV_LOAD_IMAGE_GRAYSCALE);
+			digitsImagesTemplates.push_back(digitImageTemplate);
+		}
+};
 
 
 ImageAnalysis::~ImageAnalysis() {
@@ -597,12 +605,95 @@ int ImageAnalysis::recognizeTrafficSignText(Mat& preprocessedImage, Mat& textCol
 	return 120;
 }
 
+int ImageAnalysis::recognizeDigitWithFeatureMatching(Mat& textColorSegmentationDigitROI) {
+	return -1;
+}
+
+
+int ImageAnalysis::recognizeDigitWithFeatureMatching(Mat& textColorSegmentationDigitROI, Mat& digitImageTemplate) {
+	//-- Step 1: Detect the keypoints using SURF Detector
+	int minHessian = 400;
+	cv::SurfFeatureDetector detector(minHessian);
+	std::vector<cv::KeyPoint> keypointsDigitROI, keypointsDigitTemplate;
+	detector.detect(textColorSegmentationDigitROI, keypointsDigitROI);
+	detector.detect(digitImageTemplate, keypointsDigitTemplate);
+
+	//-- Step 2: Calculate descriptors (feature vectors)
+	cv::SurfDescriptorExtractor extractor;
+	Mat descriptorsDigitROI, descriptorsDigitTemplate;
+	extractor.compute(textColorSegmentationDigitROI, keypointsDigitROI, descriptorsDigitROI);
+	extractor.compute(digitImageTemplate, keypointsDigitTemplate, descriptorsDigitTemplate);
+
+	//-- Step 3: Matching descriptor vectors using FLANN matcher
+	cv::FlannBasedMatcher matcher;
+	vector< cv::DMatch > matches;
+	matcher.match(descriptorsDigitROI, descriptorsDigitTemplate, matches);
+	double maxDist = 0; double minDist = 100;
+
+	//-- Quick calculation of max and min distances between keypoints
+	for(int i = 0; i < descriptorsDigitROI.rows; i++) {
+		double dist = matches[i].distance;
+		if(dist < minDist)
+			minDist = dist;
+
+		if(dist > maxDist)
+			maxDist = dist;
+	}
+
+	//-- Draw only "good" matches (i.e. whose distance is less than 2*min_dist )
+	//-- PS.- radiusMatch can also be used here.
+	std::vector< cv::DMatch > goodMatches;
+
+	for( int i = 0; i < descriptorsDigitROI.rows; i++ ) {
+		if(matches[i].distance <= 2*minDist) {
+			goodMatches.push_back(matches[i]);
+		}
+	}
+
+	//-- Draw only "good" matches
+	Mat imgMatches;
+	cv::drawMatches(
+		textColorSegmentationDigitROI, keypointsDigitROI, digitImageTemplate, keypointsDigitTemplate,
+		goodMatches, imgMatches, Scalar::all(-1), Scalar::all(-1),
+		vector<char>(), cv::DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS );
+
+	//-- Show detected matches
+	imshow( "Good Matches", imgMatches );
+
+	return -1;
+}
 
 
 int ImageAnalysis::recognizeDigitWithTemplateMatching(Mat& textColorSegmentationDigitROI) {
-	int digit = 0;
+	int method = CV_TM_CCOEFF_NORMED;
+	size_t bestMatchDigit = 0;
+	float bestMatch = 0;
 
-	return digit;
+	for(size_t imageNumber = 0; imageNumber < digitsImagesTemplates.size(); ++imageNumber) {
+		Mat image, templ;
+		Mat& digitTemplate = digitsImagesTemplates[imageNumber];
+		if (textColorSegmentationDigitROI.size().width > digitTemplate.size().width) {
+			cv::resize(textColorSegmentationDigitROI, image, Size(digitTemplate.size().width, digitTemplate.size().height));
+			templ = digitTemplate;
+		} else {
+			image = textColorSegmentationDigitROI;
+			cv::resize(digitTemplate, templ, Size(textColorSegmentationDigitROI.size().width, textColorSegmentationDigitROI.size().height));			
+		}
+
+		Mat result(1, 1, CV_32FC1);
+		cv::matchTemplate(image, templ, result, method);
+		float matchResult = result.at<float>(0,0);
+		if (matchResult > bestMatch) {
+			bestMatch = matchResult;
+			bestMatchDigit = imageNumber;
+		}
+	}
+
+	if (bestMatch > 0.6) {
+		return (int)bestMatchDigit;
+	} else {
+		return -1;
+	}
 }
 
 

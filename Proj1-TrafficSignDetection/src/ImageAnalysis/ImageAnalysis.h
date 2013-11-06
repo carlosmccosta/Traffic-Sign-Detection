@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/nonfree/features2d.hpp>
 #include <opencv2/highgui/highgui.hpp>
 
 using std::string;
@@ -19,6 +20,7 @@ using cv::RotatedRect;
 using cv::Scalar;
 using cv::Vec3f;
 using cv::Point;
+using cv::Size;
 using cv::VideoCapture;
 using cv::imread;
 using cv::waitKey;
@@ -29,6 +31,9 @@ using cv::resizeWindow;
 using cv::circle;
 using cv::ellipse;
 using cv::rectangle;
+
+
+#define PATH_IMAGES_DIGITS_TEMPLATES "./imgs/digits/"
 
 #define TEXT_MIN_SIZE 12
 
@@ -133,6 +138,8 @@ class ImageAnalysis {
 		
 		vector<int> segmentImageByTrafficSignText(Mat& preprocessedImage, vector< pair<Rect, RotatedRect> >& trafficSignEllipsis, bool useCVHighGUI = true);
 		int recognizeTrafficSignText(Mat& preprocessedImage, Mat& textColorSegmentation, const Rect& ellipseBoundingRect, bool useCVHighGUI = true);
+		int recognizeDigitWithFeatureMatching(Mat& textColorSegmentationDigitROI);
+		int recognizeDigitWithFeatureMatching(Mat& textColorSegmentationDigitROI, Mat& digitImageTemplate);
 		int recognizeDigitWithTemplateMatching(Mat& textColorSegmentationDigitROI);
 
 		bool updateImage();
@@ -152,6 +159,7 @@ class ImageAnalysis {
 
 	private:
 		vector<int> detectedSigns;
+		vector<Mat> digitsImagesTemplates;
 		Mat originalImage;
 		Mat preprocessedImage;
 		Mat processedImage;
