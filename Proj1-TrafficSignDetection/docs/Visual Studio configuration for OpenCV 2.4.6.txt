@@ -2,23 +2,28 @@
 ############################  OpenCV setup  ###########################
 #######################################################################
 
-Add system environment variable
+http://opencv.org/downloads.html
+Extract opencv to c:\
+
++ Add system environment variable
 OPENCV_DIR
 C:\opencv\build\
 
-Add to path
++ Add to path
 C:\opencv\build\x86\vc11\bin;
+
 
 
 #######################################################################
 ########################  OpenCV in Visual Studio  ####################
 #######################################################################
 
-Project properties -> C/C++ -> General -> Aditional Include Directories
++ Project properties -> C/C++ -> General -> Aditional Include Directories
 $(OPENCV_DIR)\include
 
-Project properties -> Linker -> General -> Aditional Library Directories
++ Project properties -> Linker -> General -> Aditional Library Directories
 $(OPENCV_DIR)\x86\vc11\lib
+
 
 Project properties -> Linker -> Input -> Aditional Dependencies
 Debug:
@@ -62,3 +67,49 @@ opencv_superres246.lib
 opencv_ts246.lib
 opencv_video246.lib
 opencv_videostab246.lib
+
+
+
+#######################################################################
+######################### Tesseract OCR setup  ########################
+#######################################################################
+
+https://code.google.com/p/tesseract-ocr/downloads/list
+	tesseract-ocr-setup-3.02.02.exe
+	tesseract-3.02.02-win32-lib-include-dirs.zip	
+
++ Install Tesseract
++ Copy dev files to install dir
+
++ Add to path
+C:\Program Files (x86)\Tesseract-OCR\lib
+
+
+
+#######################################################################
+######################  Tesseract in Visual Studio  ##################
+#######################################################################
+
++ Project properties -> C/C++ -> General -> Aditional Include Directories
+C:\Program Files (x86)\Tesseract-OCR\include
+
++ Project properties -> Linker -> General -> Aditional Library Directories
+C:\Program Files (x86)\Tesseract-OCR\lib
+
++ Project properties -> Linker -> Input -> Aditional Dependencies
+Debug:
+libtesseract302d.lib
+liblept168d.lib
+
+Release:
+libtesseract302.lib
+liblept168.lib
+
+
++ Project properties -> C/C++ -> General -> Preprocessor -> Preprocessor definitions
+
+_CRT_SECURE_NO_WARNINGS
+USE_STD_NAMESPACE
+TESSDLL_IMPORTS
+CCUTIL_IMPORTS
+LIBLEPT_IMPORTS

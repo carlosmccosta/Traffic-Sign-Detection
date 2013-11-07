@@ -1,5 +1,7 @@
 #pragma once
 
+//#define USE_TESSERACT 1
+
 #include <string>
 #include <sstream>
 #include <vector>
@@ -8,6 +10,12 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/nonfree/features2d.hpp>
 #include <opencv2/highgui/highgui.hpp>
+
+#ifdef USE_TESSERACT
+	#define _CRT_SECURE_NO_WARNINGS 1
+	#include <tesseract/baseapi.h>
+	#include <leptonica/allheaders.h>
+#endif 
 
 using std::string;
 using std::stringstream;
@@ -20,6 +28,7 @@ using cv::RotatedRect;
 using cv::Scalar;
 using cv::Vec3f;
 using cv::Point;
+using cv::Point2f;
 using cv::Size;
 using cv::VideoCapture;
 using cv::imread;
@@ -68,8 +77,11 @@ using cv::rectangle;
 #define WINDOW_NAME_TEXT_COLOR_SEGMENTATION_OPTIONS "6.1. Text color segmentation options"
 #define WINDOW_NAME_TEXT_MORPHOLOGY_OPERATORS_OPTIONS "6.2. Text morphology operators options"
 #define WINDOW_NAME_SIGNAL_ROI "7. Traffic signals ROIs"
+#define WINDOW_NAME_FEATURE_MATCHES "8. Digits features matches"
+#define WINDOW_NAME_FEATURE_GOOD_MATCHES "8. Digits features good matches"
 
-#define WINDOW_NAME_DIGITS(number) "Digit " << number << " skeleton"
+#define WINDOW_NAME_DIGITS_SKELETON(number) "Digit " << number << " skeleton"
+#define WINDOW_NAME_DIGITS_FEATURE_POINTS(signNumber, digitPosition) "Sign " << signNumber << ", digit position " << digitPosition << ", feature points good matches"
 
 #define TRACK_BAR_NAME_BI_FILTER_DIST "1Dist"
 #define TRACK_BAR_NAME_BI_FILTER_COLOR_SIG "1Color Sig"
@@ -108,10 +120,12 @@ using cv::rectangle;
 #define TRACK_BAR_NAME_TEXT_MORPH_KERNEL_SIZE_X "6MorKrnRdX"
 #define TRACK_BAR_NAME_TEXT_MORPH_KERNEL_SIZE_Y "6MorKrnRdY"
 #define TRACK_BAR_NAME_TEXT_MORPH_ITERATIONS "6MorphIter"
-#define TRACK_BAR_NAME_TEXT_MIN_MATCH_PERCENTAGE "6MinMatch"
 #define TRACK_BAR_NAME_TEXT_SKELETONIZATION_KERNEL_SIZE_X "6SklKrnRdX"
 #define TRACK_BAR_NAME_TEXT_SKELETONIZATION_KERNEL_SIZE_Y "6SklKrnRdY"
 #define TRACK_BAR_NAME_TEXT_SKELETONIZATION_ITERATIONS "6SkelIter"
+#define TRACK_BAR_NAME_TEXT_MIN_MATCH_PERCENTAGE "6MinMatchP"
+#define TRACK_BAR_NAME_TEXT_DIGIT_RECOGNITION_METHOD "6DigRecMtd"
+#define TRACK_BAR_NAME_TEXT_TEMPLATE_MATCH_METHOD "6TMatchMtd"
 
 #define	WINDOW_HEADER_HEIGHT 32
 #define WINDOW_FRAME_THICKNESS 8
@@ -121,7 +135,11 @@ using cv::rectangle;
 #define WINDOW_OPTIONS_TRACKBAR_HEIGHT 44
 #define ESC_KEYCODE 27
 
-
+enum DigitRecognitonMethod {
+	DIGIT_RECOGNITION_TEMPLATE_MATHING,
+	DIGIT_RECOGNITION_FEATURE_DETECTION,
+	DIGIT_RECOGNITION_TESSERACT
+};
 
 class ImageAnalysis {
 	public:
@@ -146,12 +164,15 @@ class ImageAnalysis {
 		void retrieveEllipsisFromHoughCircles(const Mat& colorSegmentedImage, const vector<Vec3f>& houghCirclesFiltered, vector<pair<Rect, RotatedRect> >& outputTrafficSignEllipsis, bool useCVHighGUI = true);
 		
 		vector<int> segmentImageByTrafficSignText(Mat& preprocessedImage, vector< pair<Rect, RotatedRect> >& trafficSignEllipsis, bool useCVHighGUI = true);
-		int recognizeTrafficSignText(Mat& preprocessedImage, Mat& textColorSegmentation, const Rect& ellipseBoundingRect, bool useCVHighGUI = true);
-		int recognizeDigitWithFeatureMatching(Mat& textColorSegmentationDigitROI);
-		int recognizeDigitWithFeatureMatching(Mat& textColorSegmentationDigitROI, Mat& digitImageTemplate);
-		int recognizeDigitWithTemplateMatching(Mat& textColorSegmentationDigitROI, bool useSkeletonization = false);
+		int recognizeTrafficSignText(Mat& preprocessedImage, Mat& textColorSegmentation, const Rect& ellipseBoundingRect, bool useCVHighGUI = true, size_t currentSignBeingProcessed = 0);
+		int recognizeDigit(Mat& textColorSegmentationDigitROI, Mat& feacturePointsGoodMatches, bool useSkeletonization = false, int numberRecognitionMethod = DIGIT_RECOGNITION_FEATURE_DETECTION, bool useCVHighGUI = true);			
+		float recognizeDigitWithFeatureMatching(Mat& textColorSegmentationDigitROI, Mat& digitImageTemplate, Mat& feacturePointsGoodMatches, bool useCVHighGUI = true);		
 		Mat textSkeletonization(Mat& image, Mat& kernel, int numberIterations);
 		void skeletonizeTemplates();
+
+#ifdef USE_TESSERACT
+		int recognizeDigitWithTesseract(Mat& textColorSegmentationDigitROI);
+#endif
 
 		bool updateImage();
 		
@@ -215,7 +236,10 @@ class ImageAnalysis {
 		int textColorSegmentationMorphKernelSizeY;
 		int textColorSegmentationMorphIterations;
 
-		int textMinMatchPercentage;
+		int textMinMatchPercentage;		
+		int digitRecognitionMethod;
+		int textFeatureDetectionMaxDistancePercentageKeypoint;
+		int textTemplateMatchMethod;
 
 		int textSkeletonKernelPercentageX;
 		int textSkeletonKernelPercentageY;

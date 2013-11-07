@@ -16,8 +16,9 @@ ImageAnalysis::ImageAnalysis() :
 	textColorSegmentationLowerSaturation(0), textColorSegmentationUpperSaturation(255),
 	textColorSegmentationLowerValue(0), textColorSegmentationUpperValue(147),
 	textColorSegmentationMorphType(1), textColorSegmentationMorphKernelSizeX(1), textColorSegmentationMorphKernelSizeY(1), textColorSegmentationMorphIterations(1),
-	textMinMatchPercentage(25),
-	textSkeletonKernelPercentageX(6), textSkeletonKernelPercentageY(6), textSkeletonIterations(2), useSkeletonizationOnDigits(false),
+	textMinMatchPercentage(40), digitRecognitionMethod(DIGIT_RECOGNITION_FEATURE_DETECTION),
+	textFeatureDetectionMaxDistancePercentageKeypoint(10), textTemplateMatchMethod(CV_TM_CCORR_NORMED),
+	textSkeletonKernelPercentageX(6), textSkeletonKernelPercentageY(6), textSkeletonIterations(1), useSkeletonizationOnDigits(false),
 	cannyLowerHysteresisThreshold(100), cannyHigherHysteresisThreshold(200), cannySobelOperatorKernelSize(3),
 	houghCirclesDP(1), houghCirclesMinDistanceCenters(2),
 	houghCirclesCannyHigherThreshold(200), houghCirclesAccumulatorThreshold(25),
@@ -29,6 +30,7 @@ void ImageAnalysis::loadDigitsTemplateImages() {
 		stringstream pathToImage;
 		pathToImage << PATH_IMAGES_DIGITS_TEMPLATES << number << ".png";
 		Mat digitImageTemplate = imread(pathToImage.str(), CV_LOAD_IMAGE_GRAYSCALE);
+		cv::threshold(digitImageTemplate, digitImageTemplate, 0, 255, CV_THRESH_BINARY);
 		digitsImagesTemplates.push_back(digitImageTemplate);
 	}
 
@@ -366,7 +368,7 @@ bool ImageAnalysis::aggregateCircleIntoClusters(vector< vector<Vec3f> >& houghCi
 		size_t numberCirclesToTest = houghCirclesClusters[clusterPos].size();
 		for (size_t centerToTestPos = 0; centerToTestPos < numberCirclesToTest; ++centerToTestPos) {
 			const Vec3f& centerToTest = houghCirclesClusters[clusterPos][centerToTestPos];
-			float maxRadius = std::max(centerToTest[2], centerToAdd[2]);
+			float maxRadius = (std::max)(centerToTest[2], centerToAdd[2]);
 			float dx = centerToTest[0] - centerToAdd[0];
 			float dy = centerToTest[1] - centerToAdd[1];
 			float distance = std::sqrt(dx*dx + dy*dy);
@@ -394,16 +396,16 @@ void ImageAnalysis::retrieveEllipsisFromHoughCircles(const Mat& colorSegmentedIm
 		int currentCircleRadius = cvRound(currentCircle[2]);
 
 		// add offset to compensate errors from hough transform (radius with offset cannot surpass image boundaries)		
-		int maxRadiusAllowed = std::min(std::min(cvRound(currentCircle[0]), cvRound(currentCircle[1])), std::min(imageWidth - currentCircleCenterX, imageHeight - currentCircleCenterY));
-		int radiusRadiusWithOffset = std::min(cvRound(currentCircleRadius * PARAM_FIT_ELLIPSIS_SCALE_FOR_HOUGH_CIRCLE), maxRadiusAllowed);
-		int roiWidth = std::min(radiusRadiusWithOffset * 2, imageWidth);
-		int roiHeight = std::min(radiusRadiusWithOffset * 2, imageHeight);
-		int roiX = std::max(currentCircleCenterX - radiusRadiusWithOffset, 0);
-		int roiY = std::max(currentCircleCenterY - radiusRadiusWithOffset, 0);
+		int maxRadiusAllowed = (std::min)((std::min)(cvRound(currentCircle[0]), cvRound(currentCircle[1])), (std::min)(imageWidth - currentCircleCenterX, imageHeight - currentCircleCenterY));
+		int radiusRadiusWithOffset = (std::min)(cvRound(currentCircleRadius * PARAM_FIT_ELLIPSIS_SCALE_FOR_HOUGH_CIRCLE), maxRadiusAllowed);
+		int roiWidth = (std::min)(radiusRadiusWithOffset * 2, imageWidth);
+		int roiHeight = (std::min)(radiusRadiusWithOffset * 2, imageHeight);
+		int roiX = (std::max)(currentCircleCenterX - radiusRadiusWithOffset, 0);
+		int roiY = (std::max)(currentCircleCenterY - radiusRadiusWithOffset, 0);
 		
 		// make sure roi is inside image
-		roiWidth = std::min(roiWidth, imageWidth - roiX);
-		roiHeight = std::min(roiHeight, imageHeight - roiY);
+		roiWidth = (std::min)(roiWidth, imageWidth - roiX);
+		roiHeight = (std::min)(roiHeight, imageHeight - roiY);
 		
 		try {
 			Mat circleROI = colorSegmentedImageContours.clone()(Rect(roiX, roiY, roiWidth, roiHeight));
@@ -429,10 +431,10 @@ void ImageAnalysis::retrieveEllipsisFromHoughCircles(const Mat& colorSegmentedIm
 					Rect ellipseBoundingRect = boundingRect(biggestContour);
 
 					// ellipse bounding rect must be inside image					
-					ellipseBoundingRect.x = std::max(ellipseBoundingRect.x, 0);
-					ellipseBoundingRect.y = std::max(ellipseBoundingRect.y, 0);
-					ellipseBoundingRect.width = std::min(ellipseBoundingRect.width, imageWidth - ellipseBoundingRect.x);
-					ellipseBoundingRect.height = std::min(ellipseBoundingRect.height, imageHeight - ellipseBoundingRect.y);
+					ellipseBoundingRect.x = (std::max)(ellipseBoundingRect.x, 0);
+					ellipseBoundingRect.y = (std::max)(ellipseBoundingRect.y, 0);
+					ellipseBoundingRect.width = (std::min)(ellipseBoundingRect.width, imageWidth - ellipseBoundingRect.x);
+					ellipseBoundingRect.height = (std::min)(ellipseBoundingRect.height, imageHeight - ellipseBoundingRect.y);
 					
 					// ellipse center must be inside hough transform circle
 					int dx = cvRound(ellipseFound.center.x - currentCircleCenterX);
@@ -505,7 +507,7 @@ vector<int> ImageAnalysis::segmentImageByTrafficSignText(Mat& preprocessedImage,
 			} catch(...) {}
 		}
 
-		int detectedSign = recognizeTrafficSignText(imageROIs, textColorSegmentation, ellipseBoundingRect, useCVHighGUI);
+		int detectedSign = recognizeTrafficSignText(imageROIs, textColorSegmentation, ellipseBoundingRect, useCVHighGUI, ellipsePos);
 				
 		if (useCVHighGUI) {
 			try {				
@@ -546,7 +548,7 @@ bool sortContourByHorizontalPosition(const pair< pair<vector<Point>*, size_t>, R
 }
 
 
-int ImageAnalysis::recognizeTrafficSignText(Mat& preprocessedImage, Mat& textColorSegmentation, const Rect& ellipseBoundingRect, bool useCVHighGUI) {
+int ImageAnalysis::recognizeTrafficSignText(Mat& preprocessedImage, Mat& textColorSegmentation, const Rect& ellipseBoundingRect, bool useCVHighGUI, size_t currentSignBeingProcessed) {
 	vector<vector<Point> > contours;
 	int roiX = ellipseBoundingRect.x;
 	int roiY = ellipseBoundingRect.y;
@@ -598,14 +600,24 @@ int ImageAnalysis::recognizeTrafficSignText(Mat& preprocessedImage, Mat& textCol
 	for (size_t biggestContoursPos = 0; biggestContoursPos < biggestContours.size(); ++biggestContoursPos) {				
 		// adjust roi offsets from preprocessedImage to textColorSegmentation
 		Rect digitRect = biggestContours[biggestContoursPos].second;
-		digitRect.x = std::max(digitRect.x - roiX, 0);
-		digitRect.y = std::max(digitRect.y - roiY, 0);
+		digitRect.x = (std::max)(digitRect.x - roiX, 0);
+		digitRect.y = (std::max)(digitRect.y - roiY, 0);
 		Mat textColorSegmentationDigitROI = textColorSegmentation(digitRect);
 
-		int recognizedDigit = recognizeDigitWithTemplateMatching(textColorSegmentationDigitROI, useSkeletonizationOnDigits);
+		Mat feacturePointsGoodMatches;		
+		int recognizedDigit = recognizeDigit(textColorSegmentationDigitROI, feacturePointsGoodMatches, useSkeletonizationOnDigits, digitRecognitionMethod, useCVHighGUI);		
 		if (recognizedDigit >= 0 && recognizedDigit < 10) {
 			trafficSignNumberSS << recognizedDigit;
 			++numberOfDigits;
+		}
+
+		if (digitRecognitionMethod == DIGIT_RECOGNITION_FEATURE_DETECTION && useCVHighGUI) {
+			stringstream windowNameSS;
+			windowNameSS << WINDOW_NAME_DIGITS_FEATURE_POINTS(currentSignBeingProcessed, biggestContoursPos);
+			string windowName = windowNameSS.str();
+			namedWindow(windowName, CV_WINDOW_NORMAL | CV_WINDOW_KEEPRATIO | CV_GUI_EXPANDED);
+			//moveWindow(windowName, 0, 0);
+			imshow(windowName, feacturePointsGoodMatches);
 		}
 
 
@@ -628,74 +640,16 @@ int ImageAnalysis::recognizeTrafficSignText(Mat& preprocessedImage, Mat& textCol
 	return -1;
 }
 
-int ImageAnalysis::recognizeDigitWithFeatureMatching(Mat& textColorSegmentationDigitROI) {
-	return -1;
-}
 
-
-int ImageAnalysis::recognizeDigitWithFeatureMatching(Mat& textColorSegmentationDigitROI, Mat& digitImageTemplate) {
-	//-- Step 1: Detect the keypoints using SURF Detector
-	int minHessian = 400;
-	cv::SurfFeatureDetector detector(minHessian);
-	std::vector<cv::KeyPoint> keypointsDigitROI, keypointsDigitTemplate;
-	detector.detect(textColorSegmentationDigitROI, keypointsDigitROI);
-	detector.detect(digitImageTemplate, keypointsDigitTemplate);
-
-	//-- Step 2: Calculate descriptors (feature vectors)
-	cv::SurfDescriptorExtractor extractor;
-	Mat descriptorsDigitROI, descriptorsDigitTemplate;
-	extractor.compute(textColorSegmentationDigitROI, keypointsDigitROI, descriptorsDigitROI);
-	extractor.compute(digitImageTemplate, keypointsDigitTemplate, descriptorsDigitTemplate);
-
-	//-- Step 3: Matching descriptor vectors using FLANN matcher
-	cv::FlannBasedMatcher matcher;
-	vector< cv::DMatch > matches;
-	matcher.match(descriptorsDigitROI, descriptorsDigitTemplate, matches);
-	double maxDist = 0; double minDist = 100;
-
-	//-- Quick calculation of max and min distances between keypoints
-	for(int i = 0; i < descriptorsDigitROI.rows; i++) {
-		double dist = matches[i].distance;
-		if(dist < minDist)
-			minDist = dist;
-
-		if(dist > maxDist)
-			maxDist = dist;
-	}
-
-	//-- Draw only "good" matches (i.e. whose distance is less than 2*min_dist )
-	//-- PS.- radiusMatch can also be used here.
-	std::vector< cv::DMatch > goodMatches;
-
-	for( int i = 0; i < descriptorsDigitROI.rows; i++ ) {
-		if(matches[i].distance <= 2*minDist) {
-			goodMatches.push_back(matches[i]);
-		}
-	}
-
-	//-- Draw only "good" matches
-	Mat imgMatches;
-	cv::drawMatches(
-		textColorSegmentationDigitROI, keypointsDigitROI, digitImageTemplate, keypointsDigitTemplate,
-		goodMatches, imgMatches, Scalar::all(-1), Scalar::all(-1),
-		vector<char>(), cv::DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS );
-
-	//-- Show detected matches
-	imshow( "Good Matches", imgMatches );
-
-	return -1;
-}
-
-
-int ImageAnalysis::recognizeDigitWithTemplateMatching(Mat& textColorSegmentationDigitROI, bool useSkeletonization) {
-	int method = CV_TM_CCOEFF_NORMED;
+int ImageAnalysis::recognizeDigit(Mat& textColorSegmentationDigitROI, Mat& feacturePointsGoodMatches, bool useSkeletonization, int numberRecognitionMethod, bool useCVHighGUI) {
 	size_t bestMatchDigit = 0;
 	float bestMatch = 0;
+	Mat bestMatchFeacturePointsGoodMatches;
 
 	int roiWidth = textColorSegmentationDigitROI.size().width;
 	int roiHeight = textColorSegmentationDigitROI.size().height;
-	int roiKernelSizeX = std::max(roiWidth * textSkeletonKernelPercentageX / 100, 3);
-	int roiKernelSizeY = std::max(roiHeight * textSkeletonKernelPercentageY / 100, 3);
+	int roiKernelSizeX = (std::max)(roiWidth * textSkeletonKernelPercentageX / 100, 3);
+	int roiKernelSizeY = (std::max)(roiHeight * textSkeletonKernelPercentageY / 100, 3);
 	Mat roiSkeletonizationStructuringElement = getStructuringElement(cv::MORPH_ELLIPSE, Size(roiKernelSizeX, roiKernelSizeY));
 
 	if (useSkeletonization) {
@@ -706,7 +660,15 @@ int ImageAnalysis::recognizeDigitWithTemplateMatching(Mat& textColorSegmentation
 		}
 	}
 
-	for(size_t imageNumber = 0; imageNumber < digitsImagesTemplates.size(); ++imageNumber) {						
+#ifdef USE_TESSERACT
+	if (numberRecognitionMethod == DIGIT_RECOGNITION_TESSERACT) {
+		return recognizeDigitWithTesseract(textColorSegmentationDigitROI);
+	}
+#endif
+
+	for(size_t imageNumber = 0; imageNumber < digitsImagesTemplates.size(); ++imageNumber) {								
+		float matchResult;
+
 		Mat image;
 		Mat digitTemplate;
 		int digitTemplateWidth = digitsImagesTemplatesSkeletons[imageNumber].size().width;
@@ -717,15 +679,22 @@ int ImageAnalysis::recognizeDigitWithTemplateMatching(Mat& textColorSegmentation
 			digitTemplate = digitsImagesTemplatesSkeletons[imageNumber];
 		} else {
 			image = textColorSegmentationDigitROI;
-			cv::resize(digitsImagesTemplatesSkeletons[imageNumber].clone(), digitTemplate, Size(roiWidth, roiHeight));
+			cv::resize(digitsImagesTemplatesSkeletons[imageNumber].clone(), digitTemplate, Size(textColorSegmentationDigitROI.size().width, textColorSegmentationDigitROI.size().height));
 		}		
 
-		Mat result(1, 1, CV_32FC1);
-		cv::matchTemplate(image, digitTemplate, result, method);
-		float matchResult = result.at<float>(0,0);
+		Mat feacturePointsGoodMatchesTemp;
+		if (numberRecognitionMethod == DIGIT_RECOGNITION_FEATURE_DETECTION) {		
+			matchResult = recognizeDigitWithFeatureMatching(image, digitTemplate, feacturePointsGoodMatchesTemp, useCVHighGUI);
+		} else {
+			Mat result(1, 1, CV_32FC1);
+			cv::matchTemplate(image, digitTemplate, result, textTemplateMatchMethod);
+			matchResult = result.at<float>(0,0);
+		}
+
 		if (matchResult > bestMatch) {
 			bestMatch = matchResult;
 			bestMatchDigit = imageNumber;
+			feacturePointsGoodMatches = feacturePointsGoodMatchesTemp;
 		}
 	}
 
@@ -737,6 +706,151 @@ int ImageAnalysis::recognizeDigitWithTemplateMatching(Mat& textColorSegmentation
 }
 
 
+float ImageAnalysis::recognizeDigitWithFeatureMatching(Mat& textColorSegmentationDigitROI, Mat& digitImageTemplate, Mat& feacturePointsGoodMatches, bool useCVHighGUI) {		
+	//-- Step 1: Detect the keypoints
+	//cv::SurfFeatureDetector detector(300);
+	//cv::SiftFeatureDetector detector;
+	//cv::FastFeatureDetector detector(15);
+	cv::GoodFeaturesToTrackDetector detector;
+	//cv::OrbFeatureDetector detector;
+	//cv::MserFeatureDetector detector;
+	//cv::StarFeatureDetector detector;	
+
+	vector<cv::KeyPoint> keypointsDigitROI, keypointsDigitTemplate;
+	detector.detect(textColorSegmentationDigitROI, keypointsDigitROI);
+	detector.detect(digitImageTemplate, keypointsDigitTemplate);
+
+
+	//-- Step 2: Calculate descriptors (feature vectors)
+	//cv::SurfDescriptorExtractor extractor;
+	cv::SiftDescriptorExtractor extractor;
+	//cv::BriefDescriptorExtractor extractor;
+	//cv::FREAK extractor;
+	//cv::BRISK extractor;
+
+	Mat descriptorsDigitROI, descriptorsDigitTemplate;
+	extractor.compute(textColorSegmentationDigitROI, keypointsDigitROI, descriptorsDigitROI);
+	extractor.compute(digitImageTemplate, keypointsDigitTemplate, descriptorsDigitTemplate);
+	
+	if (descriptorsDigitROI.empty() || descriptorsDigitTemplate.empty()) {
+		return 0;
+	}
+
+
+	//-- Step 3: Matching descriptor vectors using FLANN matcher		
+	cv::FlannBasedMatcher matcher;
+	//cv::BFMatcher matcher(cv::NORM_L2);
+
+	vector<cv::DMatch> matches;
+	vector<cv::DMatch> goodMatches;	
+
+
+	// 3.1
+	matcher.match(descriptorsDigitROI, descriptorsDigitTemplate, matches);
+	if (matches.empty()) {
+		return 0;
+	}
+	
+	double maxDistanceBetweenFeatureMatches = (double)textFeatureDetectionMaxDistancePercentageKeypoint * (double)digitImageTemplate.size().width / (double)100.0;	
+	for(size_t matchPos = 0; matchPos < matches.size(); ++matchPos) {
+		Point imagePoint = keypointsDigitROI[matches[matchPos].queryIdx].pt;
+		Point templatePoint = keypointsDigitTemplate[matches[matchPos].trainIdx].pt;
+		int dx = imagePoint.x - templatePoint.x;
+		int dy = imagePoint.y - templatePoint.y;
+		double distanceBetweenPoints = (double)std::sqrt(dx*dx + dy*dy);
+
+		if(distanceBetweenPoints <= maxDistanceBetweenFeatureMatches) {
+			goodMatches.push_back(matches[matchPos]);
+		}
+	}
+
+
+	// 3.2
+	//matcher.match(descriptorsDigitROI, descriptorsDigitTemplate, matches);
+	//if (matches.empty()) {
+	//	return 0;
+	//}
+
+	//float minDist = matches[0].distance;
+	//float maxDist = matches[0].distance;
+	//for(size_t matchPos = 1; matchPos < matches.size(); ++matchPos) {
+	//	float dist = matches[matchPos].distance;
+	//	if (dist < minDist) minDist = dist;
+	//	if (dist > maxDist) maxDist = dist;
+	//}
+
+	//textFeatureDetectionMaxDistancePercentageKeypoint = 20;
+	////float maxDistanceBetweenFeatureMatches = (float)textFeatureDetectionMaxDistancePercentageKeypoint * (float)digitImageTemplate.size().width / (float)100.0;
+	//float maxDistanceBetweenFeatureMatches = minDist + ((float)(textFeatureDetectionMaxDistancePercentageKeypoint * (maxDist - minDist)) / (float)100.0);
+	////float maxDistanceBetweenFeatureMatches = 2 * minDist;
+	//for(size_t matchPos = 0; matchPos < matches.size(); ++matchPos) {
+	//	if(matches[matchPos].distance <= maxDistanceBetweenFeatureMatches) {
+	//		goodMatches.push_back(matches[matchPos]);
+	//	}
+	//}
+
+
+	// 3.3
+	//vector< vector<cv::DMatch> > matchesKNN;
+	//float nnDistanceRatio = 0.8f;
+	//matcher.knnMatch(descriptorsDigitROI, descriptorsDigitTemplate, matchesKNN, 2);
+	////matcher.radiusMatch(descriptorsDigitROI, descriptorsDigitTemplate, matchesKNN, 2);
+	//for(size_t matchPos = 0; matchPos < matchesKNN.size(); ++matchPos) {
+	//	matches.push_back(matchesKNN[matchPos][0]);		
+
+	//	if(matchesKNN[matchPos][0].distance <= nnDistanceRatio * matchesKNN[matchPos][1].distance) {
+	//		goodMatches.push_back(matchesKNN[matchPos][0]);
+	//	}
+	//}
+		
+
+
+	if (useCVHighGUI) {
+		/*Mat imgMatches;		
+		cv::drawKeypoints(textColorSegmentationDigitROI, keypointsDigitROI, textColorSegmentationDigitROI);
+		cv::drawMatches(
+			textColorSegmentationDigitROI, keypointsDigitROI, digitImageTemplate, keypointsDigitTemplate,
+			matches, imgMatches, Scalar::all(-1), Scalar::all(-1),
+			vector<char>(), cv::DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS );
+		imshow(WINDOW_NAME_FEATURE_MATCHES, imgMatches);*/
+
+		cv::drawMatches(
+			textColorSegmentationDigitROI, keypointsDigitROI, digitImageTemplate, keypointsDigitTemplate,
+			goodMatches, feacturePointsGoodMatches, Scalar::all(-1), Scalar::all(-1),
+			vector<char>(), cv::DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS );
+		
+		//imshow(WINDOW_NAME_FEATURE_GOOD_MATCHES, feacturePointsGoodMatches);
+	}
+
+	return (float)goodMatches.size() / (float)matches.size();
+}
+
+#ifdef USE_TESSERACT
+int ImageAnalysis::recognizeDigitWithTesseract(Mat& textColorSegmentationDigitROI) {
+	tesseract::TessBaseAPI tess;
+	tess.Init(NULL, "eng", tesseract::OEM_DEFAULT);
+	tess.SetVariable("tessedit_char_whitelist", "0123456789");
+	tess.SetPageSegMode(tesseract::PSM_SINGLE_BLOCK);
+	tess.SetImage((uchar*)textColorSegmentationDigitROI.data, textColorSegmentationDigitROI.cols, textColorSegmentationDigitROI.rows, 1, textColorSegmentationDigitROI.cols);
+
+	char* out = tess.GetUTF8Text();
+	if (out == NULL) {
+		return -1;
+	}
+
+	stringstream ss;
+	ss << out;
+	int number = -1;
+	ss >> number;
+
+	tess.Clear();
+	tess.End();
+
+	delete[] out;
+
+	return number;
+}
+#endif
 
 Mat ImageAnalysis::textSkeletonization(Mat& image, Mat& kernel, int numberIterations) {
 	if (numberIterations < 1) {
@@ -763,8 +877,8 @@ void ImageAnalysis::skeletonizeTemplates() {
 	digitsImagesTemplatesSkeletons.clear();
 	for(size_t imageNumber = 0; imageNumber < digitsImagesTemplates.size(); ++imageNumber) {
 		Mat& templateImage = digitsImagesTemplates[imageNumber];
-		int templateKernelSizeX = std::max(templateImage.size().width * textSkeletonKernelPercentageX / 100, 3);
-		int templateKernelSizeY = std::max(templateImage.size().height * textSkeletonKernelPercentageY / 100, 3);
+		int templateKernelSizeX = (std::max)(templateImage.size().width * textSkeletonKernelPercentageX / 100, 3);
+		int templateKernelSizeY = (std::max)(templateImage.size().height * textSkeletonKernelPercentageY / 100, 3);
 		Mat templateSkeletonizationStructuringElement = getStructuringElement(cv::MORPH_ELLIPSE, Size(templateKernelSizeX, templateKernelSizeY));
 		Mat digitTemplateSkeleton;
 		if (useSkeletonizationOnDigits) {
@@ -794,7 +908,7 @@ void ImageAnalysis::skeletonizeTemplates() {
 			Mat& templateImageSkeleton = digitsImagesTemplatesSkeletons[imageNumber];
 			
 			stringstream ss;
-			ss << WINDOW_NAME_DIGITS(imageNumber);
+			ss << WINDOW_NAME_DIGITS_SKELETON(imageNumber);
 			string windowName = ss.str();
 
 			if (!windowsInitialized) {				
@@ -901,11 +1015,11 @@ void ImageAnalysis::drawTrafficSignLabel(string text, Mat& image, const Rect& si
 	int textBoxHeight = (int)(signBoundingRect.height * 0.15);
 	int fontface = cv::FONT_HERSHEY_SIMPLEX;
 	double scale = (double)textBoxHeight / 46.0;
-	int thickness = std::max(1, (int)(textBoxHeight * 0.05));
+	int thickness = (std::max)(1, (int)(textBoxHeight * 0.05));
 	int baseline = 0;
 
 	Rect textBoundingRect = signBoundingRect;
-	textBoundingRect.height = std::max(textBoxHeight, TEXT_MIN_SIZE);
+	textBoundingRect.height = (std::max)(textBoxHeight, TEXT_MIN_SIZE);
 	//textBoundingRect.y -= textBoundingRect.height;
 
 	cv::Size textSize = cv::getTextSize(text, fontface, scale, thickness, &baseline);
@@ -941,11 +1055,11 @@ void ImageAnalysis::setupResultsWindows(bool optionsOneWindow) {
 		addHighGUITrackBarWindow(WINDOW_NAME_BILATERAL_FILTER_OPTIONS, 3, 0, 0);
 		addHighGUITrackBarWindow(WINDOW_NAME_CONTRAST_AND_BRIGHTNESS_OPTIONS, 2, 3, 1, 0, WINDOW_HEADER_HEIGHT);
 		addHighGUITrackBarWindow(WINDOW_NAME_HISTOGRAM_EQUALIZATION_CLAHE_OPTIONS, 3, 3, 1, 2 * WINDOW_FRAME_THICKNESS);
-		addHighGUITrackBarWindow(WINDOW_NAME_SIGNAL_MORPHOLOGY_OPERATORS_OPTIONS, 4, 6, 2, 0, WINDOW_HEADER_HEIGHT);
+		addHighGUITrackBarWindow(WINDOW_NAME_SIGNAL_MORPHOLOGY_OPERATORS_OPTIONS, 4, 6, 2, 0, 0);
 		addHighGUITrackBarWindow(WINDOW_NAME_SIGNAL_COLOR_SEGMENTATION_OPTIONS, 6, 6, 2, 2 * WINDOW_FRAME_THICKNESS);
-		addHighGUITrackBarWindow(WINDOW_NAME_SIGNAL_RECOGNITION_OPTIONS, 6, 11, 3, WINDOW_FRAME_THICKNESS);				
-		addHighGUITrackBarWindow(WINDOW_NAME_TEXT_COLOR_SEGMENTATION_OPTIONS, 6, 12, 3, 0, 0);
-		addHighGUITrackBarWindow(WINDOW_NAME_TEXT_MORPHOLOGY_OPERATORS_OPTIONS, 8, 12, 3, 0, WINDOW_HEADER_HEIGHT);
+		addHighGUITrackBarWindow(WINDOW_NAME_SIGNAL_RECOGNITION_OPTIONS, 6, 10, 3, 2 * WINDOW_FRAME_THICKNESS, 0);
+		addHighGUITrackBarWindow(WINDOW_NAME_TEXT_COLOR_SEGMENTATION_OPTIONS, 6, 10, 3, 0, WINDOW_HEADER_HEIGHT);
+		addHighGUITrackBarWindow(WINDOW_NAME_TEXT_MORPHOLOGY_OPERATORS_OPTIONS, 10, 10, 3, 2 * WINDOW_FRAME_THICKNESS, WINDOW_HEADER_HEIGHT);
 		/*addHighGUITrackBarWindow(WINDOW_NAME_SIGNAL_CANNY_OPTIONS, 3, 14, 4);
 		addHighGUITrackBarWindow(WINDOW_NAME_SIGNAL_RECOGNITION_OPTIONS, 6, 17, 5);*/	
 	}	
@@ -992,11 +1106,17 @@ void ImageAnalysis::setupResultsWindows(bool optionsOneWindow) {
 	cv::createTrackbar(TRACK_BAR_NAME_TEXT_MORPH_OPERATOR, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_TEXT_MORPHOLOGY_OPERATORS_OPTIONS), &textColorSegmentationMorphType, 1, updateImageAnalysis, (void*)this);
 	cv::createTrackbar(TRACK_BAR_NAME_TEXT_MORPH_KERNEL_SIZE_X, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_TEXT_MORPHOLOGY_OPERATORS_OPTIONS), &textColorSegmentationMorphKernelSizeX, 20, updateImageAnalysis, (void*)this);
 	cv::createTrackbar(TRACK_BAR_NAME_TEXT_MORPH_KERNEL_SIZE_Y, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_TEXT_MORPHOLOGY_OPERATORS_OPTIONS), &textColorSegmentationMorphKernelSizeY, 20, updateImageAnalysis, (void*)this);
-	cv::createTrackbar(TRACK_BAR_NAME_TEXT_MORPH_ITERATIONS, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_TEXT_MORPHOLOGY_OPERATORS_OPTIONS), &textColorSegmentationMorphIterations, 20, updateImageAnalysis, (void*)this);
-	cv::createTrackbar(TRACK_BAR_NAME_TEXT_MIN_MATCH_PERCENTAGE, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_TEXT_MORPHOLOGY_OPERATORS_OPTIONS), &textMinMatchPercentage, 100, updateImageAnalysis, (void*)this);
+	cv::createTrackbar(TRACK_BAR_NAME_TEXT_MORPH_ITERATIONS, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_TEXT_MORPHOLOGY_OPERATORS_OPTIONS), &textColorSegmentationMorphIterations, 20, updateImageAnalysis, (void*)this);	
 	cv::createTrackbar(TRACK_BAR_NAME_TEXT_SKELETONIZATION_KERNEL_SIZE_X, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_TEXT_MORPHOLOGY_OPERATORS_OPTIONS), &textSkeletonKernelPercentageX, 100, updateImageAnalysisAndTemplates, (void*)this);
 	cv::createTrackbar(TRACK_BAR_NAME_TEXT_SKELETONIZATION_KERNEL_SIZE_Y, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_TEXT_MORPHOLOGY_OPERATORS_OPTIONS), &textSkeletonKernelPercentageY, 100, updateImageAnalysisAndTemplates, (void*)this);
 	cv::createTrackbar(TRACK_BAR_NAME_TEXT_SKELETONIZATION_ITERATIONS, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_TEXT_MORPHOLOGY_OPERATORS_OPTIONS), &textSkeletonIterations, 20, updateImageAnalysisAndTemplates, (void*)this);
+	cv::createTrackbar(TRACK_BAR_NAME_TEXT_MIN_MATCH_PERCENTAGE, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_TEXT_MORPHOLOGY_OPERATORS_OPTIONS), &textMinMatchPercentage, 100, updateImageAnalysis, (void*)this);
+#ifdef USE_TESSERACT
+	cv::createTrackbar(TRACK_BAR_NAME_TEXT_DIGIT_RECOGNITION_METHOD, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_TEXT_MORPHOLOGY_OPERATORS_OPTIONS), &digitRecognitionMethod, 2, updateImageAnalysis, (void*)this);
+#else
+	cv::createTrackbar(TRACK_BAR_NAME_TEXT_DIGIT_RECOGNITION_METHOD, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_TEXT_MORPHOLOGY_OPERATORS_OPTIONS), &digitRecognitionMethod, 1, updateImageAnalysis, (void*)this);
+#endif		
+	cv::createTrackbar(TRACK_BAR_NAME_TEXT_TEMPLATE_MATCH_METHOD, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_TEXT_MORPHOLOGY_OPERATORS_OPTIONS), &textTemplateMatchMethod, 5, updateImageAnalysis, (void*)this);	
 }
 
 
@@ -1053,7 +1173,7 @@ pair< pair<int, int>, pair<int, int> > ImageAnalysis::addHighGUITrackBarWindow(s
 	int x = (screenWidth - WINDOW_OPTIONS_WIDTH) + xOffset;
 	int y = ((WINDOW_HEADER_HEIGHT + WINDOW_FRAME_THICKNESS) * trackBarWindowNumber + WINDOW_OPTIONS_TRACKBAR_HEIGHT * cumulativeTrackBarPosition) + yOffset;
 	
-	moveWindow(windowName, x, y);	
+	moveWindow(windowName, x, y);
 
 	return pair< pair<int, int>, pair<int, int> >(pair<int, int>(x, y), pair<int, int>(width, height));
 }

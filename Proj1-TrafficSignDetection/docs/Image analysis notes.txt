@@ -42,6 +42,10 @@ Speed limit recognition
 		+ Bounding boxes (boundRect - http://docs.opencv.org/doc/tutorials/imgproc/shapedescriptors/bounding_rects_circles/bounding_rects_circles.html#bounding-rects-circles)
 		- convexHull (http://docs.opencv.org/doc/tutorials/imgproc/shapedescriptors/hull/hull.html#hull)
 	+ Template matching (http://docs.opencv.org/doc/tutorials/imgproc/histograms/template_matching/template_matching.html#template-matching)
-		+ matchTemplate (method CV_TM_CCOEFF_NORMED)
-		+ normalize
-		+ minMaxLoc (find max)
+		+ matchTemplate		
+	+ Feature detection (http://docs.opencv.org/modules/features2d/doc/common_interfaces_of_feature_detectors.html)
+		+ SURF
+		+ SIFT
+		+ FAST
+		+ GFTT
+	+ Tesseract (http://opencv-code.com/tutorials/how-to-read-the-digits-from-a-scratchcard/)
