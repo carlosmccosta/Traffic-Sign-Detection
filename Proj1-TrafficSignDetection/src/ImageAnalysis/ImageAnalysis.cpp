@@ -16,18 +16,24 @@ ImageAnalysis::ImageAnalysis() :
 	textColorSegmentationLowerSaturation(0), textColorSegmentationUpperSaturation(255),
 	textColorSegmentationLowerValue(0), textColorSegmentationUpperValue(147),
 	textColorSegmentationMorphType(1), textColorSegmentationMorphKernelSizeX(1), textColorSegmentationMorphKernelSizeY(1), textColorSegmentationMorphIterations(1),
+	textMinMatchPercentage(25),
+	textSkeletonKernelPercentageX(6), textSkeletonKernelPercentageY(6), textSkeletonIterations(2), useSkeletonizationOnDigits(false),
 	cannyLowerHysteresisThreshold(100), cannyHigherHysteresisThreshold(200), cannySobelOperatorKernelSize(3),
 	houghCirclesDP(1), houghCirclesMinDistanceCenters(2),
 	houghCirclesCannyHigherThreshold(200), houghCirclesAccumulatorThreshold(25),
-	houghCirclesMinRadius(1), houghCirclesMaxRadius(100) {
+	houghCirclesMinRadius(1), houghCirclesMaxRadius(100) {};
 
-		for(size_t number = 0; number < 10; ++number) {
-			stringstream pathToImage;
-			pathToImage << PATH_IMAGES_DIGITS_TEMPLATES << number << ".png";
-			Mat digitImageTemplate = imread(pathToImage.str(), CV_LOAD_IMAGE_GRAYSCALE);
-			digitsImagesTemplates.push_back(digitImageTemplate);
-		}
-};
+
+void ImageAnalysis::loadDigitsTemplateImages() {
+	for(size_t number = 0; number < 10; ++number) {
+		stringstream pathToImage;
+		pathToImage << PATH_IMAGES_DIGITS_TEMPLATES << number << ".png";
+		Mat digitImageTemplate = imread(pathToImage.str(), CV_LOAD_IMAGE_GRAYSCALE);
+		digitsImagesTemplates.push_back(digitImageTemplate);
+	}
+
+	skeletonizeTemplates();
+}
 
 
 ImageAnalysis::~ImageAnalysis() {
@@ -39,22 +45,34 @@ ImageAnalysis::~ImageAnalysis() {
 
 bool ImageAnalysis::processImage(string path, bool useCVHighGUI) {		
 	Mat imageToProcess;
+	bool loadSuccessful = true;
 	if (path != "") {
 		try {
 			imageToProcess = imread(path, CV_LOAD_IMAGE_COLOR);	
 		} catch (...) {
-			return false;
+			loadSuccessful = false;
 		}			
 
 		if (!imageToProcess.data) {
-			return false;
+			loadSuccessful = false;
 		}
 	} else {		
+		loadSuccessful = false;
+	}
+
+	if (!loadSuccessful) {
+		if (useCVHighGUI) {
+			cv::destroyAllWindows();
+		}
+
 		return false;
 	}
 
 	useCVHiGUI = useCVHighGUI;
 	windowsInitialized = false;
+
+	loadDigitsTemplateImages();
+
 	bool status = processImage(imageToProcess, useCVHighGUI);	
 
 	while(waitKey(0) != ESC_KEYCODE) {}
@@ -479,17 +497,22 @@ vector<int> ImageAnalysis::segmentImageByTrafficSignText(Mat& preprocessedImage,
 				(textColorSegmentationMorphType == 0? cv::MORPH_OPEN : cv::MORPH_CLOSE),
 				structuringElement, anchor,
 				textColorSegmentationMorphIterations);
-		}
-
+		}		
 
 		if (useCVHighGUI) {
 			try {
-				ellipseROI.copyTo(imageROIs(ellipseBoundingRect));
-				textColorSegmentation.copyTo(imageTexts(ellipseBoundingRect));
+				ellipseROI.copyTo(imageROIs(ellipseBoundingRect));				
 			} catch(...) {}
 		}
 
 		int detectedSign = recognizeTrafficSignText(imageROIs, textColorSegmentation, ellipseBoundingRect, useCVHighGUI);
+				
+		if (useCVHighGUI) {
+			try {				
+				textColorSegmentation.copyTo(imageTexts(ellipseBoundingRect));
+			} catch(...) {}
+		}
+		
 		if (detectedSign > 0 && detectedSign % 5 == 0) {
 			detectedSigns.push_back(detectedSign);
 
@@ -572,25 +595,25 @@ int ImageAnalysis::recognizeTrafficSignText(Mat& preprocessedImage, Mat& textCol
 	
 	stringstream trafficSignNumberSS;
 	int numberOfDigits = 0;
-	for (size_t biggestContoursPos = 0; biggestContoursPos < biggestContours.size(); ++biggestContoursPos) {		
-		Rect digitRect = biggestContours[biggestContoursPos].second;		
-		
-		if (useCVHighGUI) {
-			try {
-				rectangle(preprocessedImage, digitRect, COLOR_TEXT_HSV, 2);
-				drawContours(preprocessedImage, contours, biggestContours[biggestContoursPos].first.second, COLOR_TEXT_HSV, 2);
-			} catch(...) {}
-		}
-
+	for (size_t biggestContoursPos = 0; biggestContoursPos < biggestContours.size(); ++biggestContoursPos) {				
 		// adjust roi offsets from preprocessedImage to textColorSegmentation
+		Rect digitRect = biggestContours[biggestContoursPos].second;
 		digitRect.x = std::max(digitRect.x - roiX, 0);
 		digitRect.y = std::max(digitRect.y - roiY, 0);
 		Mat textColorSegmentationDigitROI = textColorSegmentation(digitRect);
 
-		int recognizedDigit = recognizeDigitWithTemplateMatching(textColorSegmentationDigitROI);
+		int recognizedDigit = recognizeDigitWithTemplateMatching(textColorSegmentationDigitROI, useSkeletonizationOnDigits);
 		if (recognizedDigit >= 0 && recognizedDigit < 10) {
 			trafficSignNumberSS << recognizedDigit;
 			++numberOfDigits;
+		}
+
+
+		if (useCVHighGUI) {
+			try {
+				rectangle(preprocessedImage, biggestContours[biggestContoursPos].second, COLOR_TEXT_HSV, 2);
+				drawContours(preprocessedImage, contours, biggestContours[biggestContoursPos].first.second, COLOR_TEXT_HSV, 2);
+			} catch(...) {}
 		}
 	}
 	
@@ -602,7 +625,7 @@ int ImageAnalysis::recognizeTrafficSignText(Mat& preprocessedImage, Mat& textCol
 		}
 	}
 
-	return 120;
+	return -1;
 }
 
 int ImageAnalysis::recognizeDigitWithFeatureMatching(Mat& textColorSegmentationDigitROI) {
@@ -664,24 +687,41 @@ int ImageAnalysis::recognizeDigitWithFeatureMatching(Mat& textColorSegmentationD
 }
 
 
-int ImageAnalysis::recognizeDigitWithTemplateMatching(Mat& textColorSegmentationDigitROI) {
+int ImageAnalysis::recognizeDigitWithTemplateMatching(Mat& textColorSegmentationDigitROI, bool useSkeletonization) {
 	int method = CV_TM_CCOEFF_NORMED;
 	size_t bestMatchDigit = 0;
 	float bestMatch = 0;
 
-	for(size_t imageNumber = 0; imageNumber < digitsImagesTemplates.size(); ++imageNumber) {
-		Mat image, templ;
-		Mat& digitTemplate = digitsImagesTemplates[imageNumber];
-		if (textColorSegmentationDigitROI.size().width > digitTemplate.size().width) {
-			cv::resize(textColorSegmentationDigitROI, image, Size(digitTemplate.size().width, digitTemplate.size().height));
-			templ = digitTemplate;
+	int roiWidth = textColorSegmentationDigitROI.size().width;
+	int roiHeight = textColorSegmentationDigitROI.size().height;
+	int roiKernelSizeX = std::max(roiWidth * textSkeletonKernelPercentageX / 100, 3);
+	int roiKernelSizeY = std::max(roiHeight * textSkeletonKernelPercentageY / 100, 3);
+	Mat roiSkeletonizationStructuringElement = getStructuringElement(cv::MORPH_ELLIPSE, Size(roiKernelSizeX, roiKernelSizeY));
+
+	if (useSkeletonization) {
+		textColorSegmentationDigitROI = textSkeletonization(textColorSegmentationDigitROI, roiSkeletonizationStructuringElement, textSkeletonIterations);
+	} else {
+		for(int iterNumber = 0; iterNumber < textSkeletonIterations; ++iterNumber) {
+			erode(textColorSegmentationDigitROI, textColorSegmentationDigitROI, roiSkeletonizationStructuringElement);
+		}
+	}
+
+	for(size_t imageNumber = 0; imageNumber < digitsImagesTemplates.size(); ++imageNumber) {						
+		Mat image;
+		Mat digitTemplate;
+		int digitTemplateWidth = digitsImagesTemplatesSkeletons[imageNumber].size().width;
+		int digitTemplateHeight = digitsImagesTemplatesSkeletons[imageNumber].size().height;		
+
+		if (textColorSegmentationDigitROI.size().width > digitTemplateWidth) {
+			cv::resize(textColorSegmentationDigitROI, image, Size(digitTemplateWidth, digitTemplateHeight));
+			digitTemplate = digitsImagesTemplatesSkeletons[imageNumber];
 		} else {
 			image = textColorSegmentationDigitROI;
-			cv::resize(digitTemplate, templ, Size(textColorSegmentationDigitROI.size().width, textColorSegmentationDigitROI.size().height));			
-		}
+			cv::resize(digitsImagesTemplatesSkeletons[imageNumber].clone(), digitTemplate, Size(roiWidth, roiHeight));
+		}		
 
 		Mat result(1, 1, CV_32FC1);
-		cv::matchTemplate(image, templ, result, method);
+		cv::matchTemplate(image, digitTemplate, result, method);
 		float matchResult = result.at<float>(0,0);
 		if (matchResult > bestMatch) {
 			bestMatch = matchResult;
@@ -689,12 +729,90 @@ int ImageAnalysis::recognizeDigitWithTemplateMatching(Mat& textColorSegmentation
 		}
 	}
 
-	if (bestMatch > 0.6) {
+	if (bestMatch * 100 > (float)textMinMatchPercentage) {
 		return (int)bestMatchDigit;
 	} else {
 		return -1;
 	}
 }
+
+
+
+Mat ImageAnalysis::textSkeletonization(Mat& image, Mat& kernel, int numberIterations) {
+	if (numberIterations < 1) {
+		return image.clone();
+	}
+	
+	Mat skel(image.size(), CV_8UC1, cv::Scalar(0));
+	Mat erodedImage;	
+	Mat temp;
+	
+	for(int iterNumber = 0; iterNumber < numberIterations; ++iterNumber) {
+		erode(image, erodedImage, kernel);
+		dilate(erodedImage, temp, kernel);
+		subtract(image, temp, temp);
+		bitwise_or(skel, temp, skel);
+		erodedImage.copyTo(image);
+	}
+
+	return skel;
+}
+
+
+void ImageAnalysis::skeletonizeTemplates() {
+	digitsImagesTemplatesSkeletons.clear();
+	for(size_t imageNumber = 0; imageNumber < digitsImagesTemplates.size(); ++imageNumber) {
+		Mat& templateImage = digitsImagesTemplates[imageNumber];
+		int templateKernelSizeX = std::max(templateImage.size().width * textSkeletonKernelPercentageX / 100, 3);
+		int templateKernelSizeY = std::max(templateImage.size().height * textSkeletonKernelPercentageY / 100, 3);
+		Mat templateSkeletonizationStructuringElement = getStructuringElement(cv::MORPH_ELLIPSE, Size(templateKernelSizeX, templateKernelSizeY));
+		Mat digitTemplateSkeleton;
+		if (useSkeletonizationOnDigits) {
+			digitTemplateSkeleton = textSkeletonization(templateImage.clone(), templateSkeletonizationStructuringElement, textSkeletonIterations);
+		} else {
+			digitTemplateSkeleton = templateImage.clone();
+			for(int iterNumber = 0; iterNumber < textSkeletonIterations; ++iterNumber) {
+				erode(digitTemplateSkeleton, digitTemplateSkeleton, templateSkeletonizationStructuringElement);
+			}
+		}
+		digitsImagesTemplatesSkeletons.push_back(digitTemplateSkeleton);		
+	}
+
+	if (useCVHiGUI) {
+		int windowXPos = 0;
+		int windowYPos = screenHeight - WINDOW_DIGITS_HEIGHT;
+		
+		int digitsWindowSpace = screenWidth - WINDOW_OPTIONS_WIDTH;
+		int digitWidth = digitsWindowSpace / 10;
+		int digitHeight = WINDOW_DIGITS_HEIGHT;
+		
+		if (digitHeight * 10 * 0.7 > digitsWindowSpace) {
+			digitHeight = (int)(digitsWindowSpace / (10 * 0.7));
+		}
+
+		for(size_t imageNumber = 0; imageNumber < digitsImagesTemplates.size(); ++imageNumber) {
+			Mat& templateImageSkeleton = digitsImagesTemplatesSkeletons[imageNumber];
+			
+			stringstream ss;
+			ss << WINDOW_NAME_DIGITS(imageNumber);
+			string windowName = ss.str();
+
+			if (!windowsInitialized) {				
+				namedWindow(windowName, CV_WINDOW_NORMAL | CV_WINDOW_KEEPRATIO | CV_GUI_EXPANDED);
+			}
+			
+			int windowHeight = digitHeight - WINDOW_FRAME_THICKNESS - WINDOW_HEADER_HEIGHT;
+			int windowWidth = templateImageSkeleton.size().width * digitHeight / templateImageSkeleton.size().height;
+						
+			resizeWindow(windowName, windowWidth, windowHeight);
+			moveWindow(windowName, windowXPos, windowYPos);			
+			imshow(windowName, templateImageSkeleton);
+
+			windowXPos += windowWidth + 2 * WINDOW_FRAME_THICKNESS;
+		}
+	}
+}
+
 
 
 bool ImageAnalysis::updateImage() {
@@ -739,6 +857,8 @@ bool ImageAnalysis::processVideo(VideoCapture videoCapture, bool useCVHighGUI) {
 	useCVHiGUI = useCVHighGUI;
 	windowsInitialized = false;
 
+	loadDigitsTemplateImages();
+
 	int millisecPollingInterval = 1000 / frameRate;
 	if (millisecPollingInterval < 10)
 		millisecPollingInterval = 10;
@@ -770,6 +890,12 @@ void updateImageAnalysis(int position, void* userData) {
 	imgAnalysis->updateImage();
 }
 
+
+void updateImageAnalysisAndTemplates(int position, void* userData) {		
+	ImageAnalysis* imgAnalysis = ((ImageAnalysis*)userData);
+	imgAnalysis->skeletonizeTemplates();
+	imgAnalysis->updateImage();
+}
 
 void ImageAnalysis::drawTrafficSignLabel(string text, Mat& image, const Rect& signBoundingRect) {
 	int textBoxHeight = (int)(signBoundingRect.height * 0.15);
@@ -817,11 +943,11 @@ void ImageAnalysis::setupResultsWindows(bool optionsOneWindow) {
 		addHighGUITrackBarWindow(WINDOW_NAME_HISTOGRAM_EQUALIZATION_CLAHE_OPTIONS, 3, 3, 1, 2 * WINDOW_FRAME_THICKNESS);
 		addHighGUITrackBarWindow(WINDOW_NAME_SIGNAL_MORPHOLOGY_OPERATORS_OPTIONS, 4, 6, 2, 0, WINDOW_HEADER_HEIGHT);
 		addHighGUITrackBarWindow(WINDOW_NAME_SIGNAL_COLOR_SEGMENTATION_OPTIONS, 6, 6, 2, 2 * WINDOW_FRAME_THICKNESS);
-		addHighGUITrackBarWindow(WINDOW_NAME_SIGNAL_RECOGNITION_OPTIONS, 6, 12, 3, 2 * WINDOW_FRAME_THICKNESS);
-		addHighGUITrackBarWindow(WINDOW_NAME_TEXT_MORPHOLOGY_OPERATORS_OPTIONS, 4, 12, 3, 0, WINDOW_HEADER_HEIGHT);
-		addHighGUITrackBarWindow(WINDOW_NAME_TEXT_COLOR_SEGMENTATION_OPTIONS, 6, 12, 3, 0, 2 * WINDOW_HEADER_HEIGHT);
+		addHighGUITrackBarWindow(WINDOW_NAME_SIGNAL_RECOGNITION_OPTIONS, 6, 11, 3, WINDOW_FRAME_THICKNESS);				
+		addHighGUITrackBarWindow(WINDOW_NAME_TEXT_COLOR_SEGMENTATION_OPTIONS, 6, 12, 3, 0, 0);
+		addHighGUITrackBarWindow(WINDOW_NAME_TEXT_MORPHOLOGY_OPERATORS_OPTIONS, 8, 12, 3, 0, WINDOW_HEADER_HEIGHT);
 		/*addHighGUITrackBarWindow(WINDOW_NAME_SIGNAL_CANNY_OPTIONS, 3, 14, 4);
-		addHighGUITrackBarWindow(WINDOW_NAME_SIGNAL_RECOGNITION_OPTIONS, 6, 17, 5);*/		
+		addHighGUITrackBarWindow(WINDOW_NAME_SIGNAL_RECOGNITION_OPTIONS, 6, 17, 5);*/	
 	}	
 	
 	cv::createTrackbar(TRACK_BAR_NAME_BI_FILTER_DIST, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_BILATERAL_FILTER_OPTIONS), &bilateralFilterDistance, 100, updateImageAnalysis, (void*)this);
@@ -867,41 +993,45 @@ void ImageAnalysis::setupResultsWindows(bool optionsOneWindow) {
 	cv::createTrackbar(TRACK_BAR_NAME_TEXT_MORPH_KERNEL_SIZE_X, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_TEXT_MORPHOLOGY_OPERATORS_OPTIONS), &textColorSegmentationMorphKernelSizeX, 20, updateImageAnalysis, (void*)this);
 	cv::createTrackbar(TRACK_BAR_NAME_TEXT_MORPH_KERNEL_SIZE_Y, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_TEXT_MORPHOLOGY_OPERATORS_OPTIONS), &textColorSegmentationMorphKernelSizeY, 20, updateImageAnalysis, (void*)this);
 	cv::createTrackbar(TRACK_BAR_NAME_TEXT_MORPH_ITERATIONS, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_TEXT_MORPHOLOGY_OPERATORS_OPTIONS), &textColorSegmentationMorphIterations, 20, updateImageAnalysis, (void*)this);
+	cv::createTrackbar(TRACK_BAR_NAME_TEXT_MIN_MATCH_PERCENTAGE, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_TEXT_MORPHOLOGY_OPERATORS_OPTIONS), &textMinMatchPercentage, 100, updateImageAnalysis, (void*)this);
+	cv::createTrackbar(TRACK_BAR_NAME_TEXT_SKELETONIZATION_KERNEL_SIZE_X, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_TEXT_MORPHOLOGY_OPERATORS_OPTIONS), &textSkeletonKernelPercentageX, 100, updateImageAnalysisAndTemplates, (void*)this);
+	cv::createTrackbar(TRACK_BAR_NAME_TEXT_SKELETONIZATION_KERNEL_SIZE_Y, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_TEXT_MORPHOLOGY_OPERATORS_OPTIONS), &textSkeletonKernelPercentageY, 100, updateImageAnalysisAndTemplates, (void*)this);
+	cv::createTrackbar(TRACK_BAR_NAME_TEXT_SKELETONIZATION_ITERATIONS, (optionsOneWindow? WINDOW_NAME_OPTIONS : WINDOW_NAME_TEXT_MORPHOLOGY_OPERATORS_OPTIONS), &textSkeletonIterations, 20, updateImageAnalysisAndTemplates, (void*)this);
 }
 
 
-pair<int, int> ImageAnalysis::addHighGUIWindow(int column, int row, string windowName, int numberColumns, int numberRows, int xOffset, int yOffset) {
+pair< pair<int, int>, pair<int, int> > ImageAnalysis::addHighGUIWindow(int column, int row, string windowName, int numberColumns, int numberRows, int xOffset, int yOffset, int windowWidth, int windowHeight, int imageWidth, int imageHeight) {
 	if (numberColumns < 1 || numberRows < 1)
-		return pair<int, int>(0, 0);
+		return pair< pair<int, int>, pair<int, int> >(pair<int, int>(0, 0), pair<int, int>(0, 0));
 	
-	int imageWidth = originalImage.size().width;
-	if (imageWidth < 10)
-		imageWidth = screenWidth / 2;
+	int imageWidthFinal = (imageWidth > 0? imageWidth : originalImage.size().width);
+	if (imageWidthFinal < 10)
+		imageWidthFinal = (screenWidth - WINDOW_OPTIONS_WIDTH) / 2;
 
-	int imageHeight = originalImage.size().height;
-	if (imageHeight < 10)
-		imageHeight = screenHeight / 2;	
+	int imageHeightFinal = (imageHeight > 0? imageHeight : originalImage.size().height);
+	if (imageHeightFinal < 10)
+		imageHeightFinal = (screenHeight - WINDOW_DIGITS_HEIGHT)/ 2;	
 
 
-	int windowHeight = screenHeight / numberRows;
-	int windowWidth = imageWidth * windowHeight / imageHeight;
+	int windowHeightFinal = (windowHeight > 0? windowHeight : ((screenHeight - WINDOW_DIGITS_HEIGHT) / numberRows));
+	int windowWidthFinal = (windowWidth > 0? windowWidth : (imageWidthFinal * windowHeightFinal / imageHeightFinal));
 
-	if ((windowWidth * numberColumns + WINDOW_OPTIONS_WIDTH) > screenWidth) {		
-		windowWidth = ((screenWidth - WINDOW_OPTIONS_WIDTH) / numberColumns);
-		windowHeight = imageHeight * windowWidth / imageWidth;
+	if ((windowWidthFinal * numberColumns + WINDOW_OPTIONS_WIDTH) > screenWidth) {		
+		windowWidthFinal = ((screenWidth - WINDOW_OPTIONS_WIDTH) / numberColumns);
+		windowHeightFinal = imageHeightFinal * windowWidthFinal / imageWidthFinal;
 	}
 
 	namedWindow(windowName, CV_WINDOW_NORMAL | CV_WINDOW_KEEPRATIO | CV_GUI_EXPANDED);
-	resizeWindow(windowName, windowWidth - 2 * WINDOW_FRAME_THICKNESS, windowHeight - WINDOW_FRAME_THICKNESS - WINDOW_HEADER_HEIGHT);
+	resizeWindow(windowName, windowWidthFinal - 2 * WINDOW_FRAME_THICKNESS, windowHeightFinal - WINDOW_FRAME_THICKNESS - WINDOW_HEADER_HEIGHT);
 	
 	int x = 0;
 	if (column != 0) {
-		x = windowWidth * column;
+		x = windowWidthFinal * column;
 	}
 
 	int y = 0;
 	if (row != 0) {
-		y = windowHeight * row;
+		y = windowHeightFinal * row;
 	}
 
 	x += xOffset;
@@ -909,11 +1039,11 @@ pair<int, int> ImageAnalysis::addHighGUIWindow(int column, int row, string windo
 	
 	moveWindow(windowName, x, y);
 
-	return pair<int, int>(x, y);
+	return pair< pair<int, int>, pair<int, int> >(pair<int, int>(x, y), pair<int, int>(windowWidthFinal, windowHeightFinal));
 }
 
 
-pair<int, int> ImageAnalysis::addHighGUITrackBarWindow(string windowName, int numberTrackBars, int cumulativeTrackBarPosition, int trackBarWindowNumber, int xOffset, int yOffset) {
+pair< pair<int, int>, pair<int, int> > ImageAnalysis::addHighGUITrackBarWindow(string windowName, int numberTrackBars, int cumulativeTrackBarPosition, int trackBarWindowNumber, int xOffset, int yOffset) {
 	namedWindow(windowName, CV_WINDOW_NORMAL | CV_WINDOW_KEEPRATIO | CV_GUI_EXPANDED);
 
 	int width = WINDOW_OPTIONS_WIDTH - WINDOW_FRAME_THICKNESS * 2;
@@ -923,12 +1053,9 @@ pair<int, int> ImageAnalysis::addHighGUITrackBarWindow(string windowName, int nu
 	int x = (screenWidth - WINDOW_OPTIONS_WIDTH) + xOffset;
 	int y = ((WINDOW_HEADER_HEIGHT + WINDOW_FRAME_THICKNESS) * trackBarWindowNumber + WINDOW_OPTIONS_TRACKBAR_HEIGHT * cumulativeTrackBarPosition) + yOffset;
 	
-	moveWindow(windowName, x, y);
+	moveWindow(windowName, x, y);	
 
-
-	
-
-	return pair<int, int>(x, y);
+	return pair< pair<int, int>, pair<int, int> >(pair<int, int>(x, y), pair<int, int>(width, height));
 }
 
 

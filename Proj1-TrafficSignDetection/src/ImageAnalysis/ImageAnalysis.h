@@ -65,9 +65,11 @@ using cv::rectangle;
 #define WINDOW_NAME_SIGNAL_RECOGNITION "5. Signal circle and ellipse recognition"
 #define WINDOW_NAME_SIGNAL_RECOGNITION_OPTIONS "5.1. Signal circle and ellipse recognition options"
 #define WINDOW_NAME_TEXT_COLOR_SEGMENTATION "6. Text color segmentation with morphology operators"
-#define WINDOW_NAME_TEXT_MORPHOLOGY_OPERATORS_OPTIONS "6.1. Text morphology operators options"
-#define WINDOW_NAME_TEXT_COLOR_SEGMENTATION_OPTIONS "6.2. Text color segmentation options"
+#define WINDOW_NAME_TEXT_COLOR_SEGMENTATION_OPTIONS "6.1. Text color segmentation options"
+#define WINDOW_NAME_TEXT_MORPHOLOGY_OPERATORS_OPTIONS "6.2. Text morphology operators options"
 #define WINDOW_NAME_SIGNAL_ROI "7. Traffic signals ROIs"
+
+#define WINDOW_NAME_DIGITS(number) "Digit " << number << " skeleton"
 
 #define TRACK_BAR_NAME_BI_FILTER_DIST "1Dist"
 #define TRACK_BAR_NAME_BI_FILTER_COLOR_SIG "1Color Sig"
@@ -106,14 +108,19 @@ using cv::rectangle;
 #define TRACK_BAR_NAME_TEXT_MORPH_KERNEL_SIZE_X "6MorKrnRdX"
 #define TRACK_BAR_NAME_TEXT_MORPH_KERNEL_SIZE_Y "6MorKrnRdY"
 #define TRACK_BAR_NAME_TEXT_MORPH_ITERATIONS "6MorphIter"
-
+#define TRACK_BAR_NAME_TEXT_MIN_MATCH_PERCENTAGE "6MinMatch"
+#define TRACK_BAR_NAME_TEXT_SKELETONIZATION_KERNEL_SIZE_X "6SklKrnRdX"
+#define TRACK_BAR_NAME_TEXT_SKELETONIZATION_KERNEL_SIZE_Y "6SklKrnRdY"
+#define TRACK_BAR_NAME_TEXT_SKELETONIZATION_ITERATIONS "6SkelIter"
 
 #define	WINDOW_HEADER_HEIGHT 32
 #define WINDOW_FRAME_THICKNESS 8
 #define WINDOW_OPTIONS_WIDTH 350
 #define WINDOW_OPTIONS_HIGHT 935
+#define WINDOW_DIGITS_HEIGHT 200
 #define WINDOW_OPTIONS_TRACKBAR_HEIGHT 44
 #define ESC_KEYCODE 27
+
 
 
 class ImageAnalysis {
@@ -121,6 +128,8 @@ class ImageAnalysis {
 		ImageAnalysis();
 		virtual ~ImageAnalysis();
 				
+		void loadDigitsTemplateImages();
+
 		bool processImage(string path, bool useCVHighGUI = true);
 		bool processImage(Mat& image, bool useCVHighGUI = true);
 
@@ -140,7 +149,9 @@ class ImageAnalysis {
 		int recognizeTrafficSignText(Mat& preprocessedImage, Mat& textColorSegmentation, const Rect& ellipseBoundingRect, bool useCVHighGUI = true);
 		int recognizeDigitWithFeatureMatching(Mat& textColorSegmentationDigitROI);
 		int recognizeDigitWithFeatureMatching(Mat& textColorSegmentationDigitROI, Mat& digitImageTemplate);
-		int recognizeDigitWithTemplateMatching(Mat& textColorSegmentationDigitROI);
+		int recognizeDigitWithTemplateMatching(Mat& textColorSegmentationDigitROI, bool useSkeletonization = false);
+		Mat textSkeletonization(Mat& image, Mat& kernel, int numberIterations);
+		void skeletonizeTemplates();
 
 		bool updateImage();
 		
@@ -154,12 +165,13 @@ class ImageAnalysis {
 		void setupResultsWindows(bool optionsOneWindow = false);
 		bool outputResults();		
 
-		pair<int, int> addHighGUIWindow(int column, int row, string windowName, int numberColumns = 4, int numberRows = 2, int xOffset = 0, int yOffset = 0);
-		pair<int, int> addHighGUITrackBarWindow(string windowName, int numberTrackBars, int cumulativeTrackBarPosition, int trackBarWindowNumber, int xOffset = 0, int yOffset = 0);
+		pair< pair<int, int>, pair<int, int> > addHighGUIWindow(int column, int row, string windowName, int numberColumns = 4, int numberRows = 2, int xOffset = 0, int yOffset = 0, int windowWidth = -1, int windowHeight = -1, int imageWidth = -1, int imageHeight = -1);
+		pair< pair<int, int>, pair<int, int> > addHighGUITrackBarWindow(string windowName, int numberTrackBars, int cumulativeTrackBarPosition, int trackBarWindowNumber, int xOffset = 0, int yOffset = 0);
 
 	private:
 		vector<int> detectedSigns;
 		vector<Mat> digitsImagesTemplates;
+		vector<Mat> digitsImagesTemplatesSkeletons;
 		Mat originalImage;
 		Mat preprocessedImage;
 		Mat processedImage;
@@ -202,6 +214,13 @@ class ImageAnalysis {
 		int textColorSegmentationMorphKernelSizeX;
 		int textColorSegmentationMorphKernelSizeY;
 		int textColorSegmentationMorphIterations;
+
+		int textMinMatchPercentage;
+
+		int textSkeletonKernelPercentageX;
+		int textSkeletonKernelPercentageY;
+		int textSkeletonIterations;
+		bool useSkeletonizationOnDigits;
 
 		int cannyLowerHysteresisThreshold;
 		int cannyHigherHysteresisThreshold;
