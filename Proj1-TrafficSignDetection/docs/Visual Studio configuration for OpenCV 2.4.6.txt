@@ -76,7 +76,9 @@ opencv_videostab246.lib
 
 https://code.google.com/p/tesseract-ocr/downloads/list
 	tesseract-ocr-setup-3.02.02.exe
-	tesseract-3.02.02-win32-lib-include-dirs.zip	
+	tesseract-3.02.02-win32-lib-include-dirs.zip
+
+http://tesseract-ocr.googlecode.com/svn/trunk/vs2008/doc/setup.html
 
 + Install Tesseract
 + Copy dev files to install dir

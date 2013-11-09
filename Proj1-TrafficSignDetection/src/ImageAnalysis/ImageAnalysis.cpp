@@ -114,8 +114,7 @@ bool ImageAnalysis::processImage(Mat& image, bool useCVHighGUI) {
 	processedImage = preprocessedImage;
 	if (useCVHighGUI) {
 		imshow(WINDOW_NAME_MAIN, originalImage);
-		imshow(WINDOW_NAME_SIGNAL_RECOGNITION, processedImage);
-		outputResults();
+		imshow(WINDOW_NAME_SIGNAL_RECOGNITION, processedImage);		
 	}
 
 	return true;
@@ -143,12 +142,12 @@ void ImageAnalysis::preprocessImage(Mat& image, bool useCVHighGUI ) {
 }
 
 
-void ImageAnalysis::histogramEqualization(Mat& image, bool use_CLAHE, bool useCVHighGUI) {	
+void ImageAnalysis::histogramEqualization(Mat& image, bool useCLAHE, bool useCVHighGUI) {	
 	cvtColor(image, image, CV_BGR2YCrCb);
 	vector<Mat> channels;
 	cv::split(image, channels);
 
-	if (use_CLAHE) {
+	if (useCLAHE) {
 		cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE((claehClipLimit < 1 ? 1 : claehClipLimit), cv::Size((claehTileXSize < 1 ? 1 : claehTileXSize) , (claehTileYSize < 1? 1 : claehTileYSize)));
 		clahe->apply(channels[0], channels[0]);
 	} else {
@@ -158,7 +157,7 @@ void ImageAnalysis::histogramEqualization(Mat& image, bool use_CLAHE, bool useCV
 	cv::merge(channels, image);
 	cvtColor(image, image, CV_YCrCb2BGR);	
 	if (useCVHighGUI) {
-		if (use_CLAHE) {
+		if (useCLAHE) {
 			imshow(WINDOW_NAME_HISTOGRAM_EQUALIZATION_CLAHE, image);
 		} else {
 			imshow(WINDOW_NAME_HISTOGRAM_EQUALIZATION, image);
@@ -263,7 +262,7 @@ void ImageAnalysis::recognizeTrafficSignsEllipsis(Mat& colorSegmentedImage, Mat&
 		}
 	}
 	
-	retrieveEllipsisFromHoughCircles(colorSegmentedImage, houghCirclesFiltered, outputRecognizedEllipsis, useCVHighGUI);
+	retrieveEllipsisFromHoughCircles(colorSegmentedImage, preprocessedImage, houghCirclesFiltered, outputRecognizedEllipsis, useCVHighGUI);
 }
 
 
@@ -271,9 +270,11 @@ bool sortCircleClusterByMedianY(const Vec3f& left, const Vec3f& right) {
 	return left[1] < right[1];
 }
 
+
 bool sortCircleClusterByRadius(const Vec3f& left, const Vec3f& right) {
 	return left[2] < right[2];
 }
+
 
 void ImageAnalysis::filterRecognizedTrafficSignCircles(const vector<Vec3f>& houghCircles, vector<Vec3f>& outputHoughCirclesFiltered) {
 	if (houghCircles.size() > 1) {				
@@ -385,7 +386,7 @@ bool ImageAnalysis::aggregateCircleIntoClusters(vector< vector<Vec3f> >& houghCi
 }
 
 
-void ImageAnalysis::retrieveEllipsisFromHoughCircles(const Mat& colorSegmentedImage, const vector<Vec3f>& houghCirclesFiltered, vector<pair<Rect, RotatedRect> >& outputTrafficSignEllipsis, bool useCVHighGUI) {
+void ImageAnalysis::retrieveEllipsisFromHoughCircles(const Mat& colorSegmentedImage, Mat& preprocessedImage, const vector<Vec3f>& houghCirclesFiltered, vector<pair<Rect, RotatedRect> >& outputTrafficSignEllipsis, bool useCVHighGUI) {
 	Mat colorSegmentedImageContours = colorSegmentedImage.clone();
 	int imageWidth = colorSegmentedImage.size().width;
 	int imageHeight = colorSegmentedImage.size().height;
@@ -515,7 +516,7 @@ vector<int> ImageAnalysis::segmentImageByTrafficSignText(Mat& preprocessedImage,
 			} catch(...) {}
 		}
 		
-		if (detectedSign > 0 && detectedSign % 5 == 0) {
+		if (detectedSign > 0) {
 			detectedSigns.push_back(detectedSign);
 
 			if (useCVHighGUI) {
@@ -617,7 +618,9 @@ int ImageAnalysis::recognizeTrafficSignText(Mat& preprocessedImage, Mat& textCol
 			string windowName = windowNameSS.str();
 			namedWindow(windowName, CV_WINDOW_NORMAL | CV_WINDOW_KEEPRATIO | CV_GUI_EXPANDED);
 			//moveWindow(windowName, 0, 0);
-			imshow(windowName, feacturePointsGoodMatches);
+			if (feacturePointsGoodMatches.data && feacturePointsGoodMatches.size().width > 0 && feacturePointsGoodMatches.size().height > 0) {
+				imshow(windowName, feacturePointsGoodMatches);
+			}
 		}
 
 
@@ -632,7 +635,7 @@ int ImageAnalysis::recognizeTrafficSignText(Mat& preprocessedImage, Mat& textCol
 	if (numberOfDigits > 0) {
 		int trafficSignNumber = -1;
 		trafficSignNumberSS >> trafficSignNumber;
-		if (trafficSignNumber >= 10 * (numberOfDigits - 1)) {
+		if (trafficSignNumber >= std::pow(10, (numberOfDigits - 1))) {
 			return trafficSignNumber;
 		}
 	}
@@ -828,6 +831,7 @@ float ImageAnalysis::recognizeDigitWithFeatureMatching(Mat& textColorSegmentatio
 #ifdef USE_TESSERACT
 int ImageAnalysis::recognizeDigitWithTesseract(Mat& textColorSegmentationDigitROI) {
 	tesseract::TessBaseAPI tess;
+	//tesseract::TessBaseAPI::SetVariable("tessedit_char_whitelist", "0123456789");
 	tess.Init(NULL, "eng", tesseract::OEM_DEFAULT);
 	tess.SetVariable("tessedit_char_whitelist", "0123456789");
 	tess.SetPageSegMode(tesseract::PSM_SINGLE_BLOCK);
@@ -1011,6 +1015,7 @@ void updateImageAnalysisAndTemplates(int position, void* userData) {
 	imgAnalysis->updateImage();
 }
 
+
 void ImageAnalysis::drawTrafficSignLabel(string text, Mat& image, const Rect& signBoundingRect) {
 	int textBoxHeight = (int)(signBoundingRect.height * 0.15);
 	int fontface = cv::FONT_HERSHEY_SIMPLEX;
@@ -1176,10 +1181,5 @@ pair< pair<int, int>, pair<int, int> > ImageAnalysis::addHighGUITrackBarWindow(s
 	moveWindow(windowName, x, y);
 
 	return pair< pair<int, int>, pair<int, int> >(pair<int, int>(x, y), pair<int, int>(width, height));
-}
-
-
-bool ImageAnalysis::outputResults() {	
-	return true;
 }
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>  </OpenCV HighGUI>  <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<

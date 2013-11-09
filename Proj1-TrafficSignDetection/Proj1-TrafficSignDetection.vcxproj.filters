@@ -52,6 +52,8 @@
     <None Include="imgs\digits\7.psd" />
     <None Include="imgs\digits\8.psd" />
     <None Include="imgs\digits\9.psd" />
+    <None Include="report\Proj1-TrafficSignDetection-CarlosCosta.docx" />
+    <None Include="report\Proj1-TrafficSignDetection-CarlosCosta.pdf" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="imgs\hsv\hsv.png">
@@ -118,6 +120,108 @@
       <Filter>Resource Files</Filter>
     </Image>
     <Image Include="imgs\digits\9.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="imgs\signs\speed_limit_sign.jpg">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="imgs\signs\speed_limit_sign_10.jpg">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="imgs\signs\speed_limit_sign_11.jpg">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="imgs\signs\speed_limit_sign_12.jpg">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="imgs\signs\speed_limit_sign_13.jpg">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="imgs\signs\speed_limit_sign_14.jpg">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="imgs\signs\speed_limit_sign_15.jpg">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="imgs\signs\speed_limit_sign_16.jpg">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="imgs\signs\speed_limit_sign_17.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="imgs\signs\speed_limit_sign_18.jpg">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="imgs\signs\speed_limit_sign_19.jpg">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="imgs\signs\speed_limit_sign_2.jpg">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="imgs\signs\speed_limit_sign_20.jpg">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="imgs\signs\speed_limit_sign_21.jpg">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="imgs\signs\speed_limit_sign_22.jpg">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="imgs\signs\speed_limit_sign_23.jpg">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="imgs\signs\speed_limit_sign_24.jpg">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="imgs\signs\speed_limit_sign_25.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="imgs\signs\speed_limit_sign_26.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="imgs\signs\speed_limit_sign_27.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="imgs\signs\speed_limit_sign_28.jpg">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="imgs\signs\speed_limit_sign_29.jpg">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="imgs\signs\speed_limit_sign_3.jpg">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="imgs\signs\speed_limit_sign_30.jpg">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="imgs\signs\speed_limit_sign_31.jpg">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="imgs\signs\speed_limit_sign_32.jpg">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="imgs\signs\speed_limit_sign_33.jpg">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="imgs\signs\speed_limit_sign_34.jpg">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="imgs\signs\speed_limit_sign_4.jpg">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="imgs\signs\speed_limit_sign_5.jpg">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="imgs\signs\speed_limit_sign_6.jpg">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="imgs\signs\speed_limit_sign_7.jpg">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="imgs\signs\speed_limit_sign_8.jpg">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="imgs\signs\speed_limit_sign_9.jpg">
       <Filter>Resource Files</Filter>
     </Image>
   </ItemGroup>

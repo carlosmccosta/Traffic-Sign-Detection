@@ -42,6 +42,7 @@ using cv::ellipse;
 using cv::rectangle;
 
 
+// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>  <defines>  <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 #define PATH_IMAGES_DIGITS_TEMPLATES "./imgs/digits/"
 
 #define TEXT_MIN_SIZE 12
@@ -79,7 +80,6 @@ using cv::rectangle;
 #define WINDOW_NAME_SIGNAL_ROI "7. Traffic signals ROIs"
 #define WINDOW_NAME_FEATURE_MATCHES "8. Digits features matches"
 #define WINDOW_NAME_FEATURE_GOOD_MATCHES "8. Digits features good matches"
-
 #define WINDOW_NAME_DIGITS_SKELETON(number) "Digit " << number << " skeleton"
 #define WINDOW_NAME_DIGITS_FEATURE_POINTS(signNumber, digitPosition) "Sign " << signNumber << ", digit position " << digitPosition << ", feature points good matches"
 
@@ -133,60 +133,291 @@ using cv::rectangle;
 #define WINDOW_OPTIONS_HIGHT 935
 #define WINDOW_DIGITS_HEIGHT 200
 #define WINDOW_OPTIONS_TRACKBAR_HEIGHT 44
-#define ESC_KEYCODE 27
 
+#define ESC_KEYCODE 27
+// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>  </defines>  <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+
+
+// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>  <Image analysis>  <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 enum DigitRecognitonMethod {
 	DIGIT_RECOGNITION_TEMPLATE_MATHING,
 	DIGIT_RECOGNITION_FEATURE_DETECTION,
 	DIGIT_RECOGNITION_TESSERACT
 };
 
+/// Image analysis class that detects speed limits signs and recognizes the speed limit number
 class ImageAnalysis {
 	public:
+		
+		/// Constructor with initialization of parameters with default value		 		 
 		ImageAnalysis();
+		
+		/// ImageAnalysis destructor that performs cleanup of OpenCV HighGUI windows (in case they are used)		 
 		virtual ~ImageAnalysis();
 				
+
+		/// Loads the digits image templates, applying a thresholding algorithm in order to have binary images for each number (0 to 9)		 		
 		void loadDigitsTemplateImages();
 
+
+		/*!
+		 * \brief Processes the image from the specified path
+		 * \param path Full path to image
+		 * \param useCVHighGUI Optional parameter specifying if the results and the intermediate processing should be displayed using OpenCV HighGUI
+		 * \return true if image was successfully processed
+		 */
 		bool processImage(string path, bool useCVHighGUI = true);
+
+
+		/*!
+		 * \brief Processes the image already loaded
+		 * \param image Image loaded and ready to be processed
+		 * \param useCVHighGUI Optional parameter specifying if the results and the intermediate processing should be displayed using OpenCV HighGUI
+		 * \return true if image was successfully processed
+		 */
 		bool processImage(Mat& image, bool useCVHighGUI = true);
 
-		void preprocessImage(Mat& image, bool useCVHighGUI = true);
-		void histogramEqualization(Mat& image, bool use_CLAHE = true, bool useCVHighGUI = true);		
 
+		/*!
+		 * \brief Preprocesses the image by applying bilateral filtering, histogram equalization, contrast and brightness correction and bilateral filtering again
+		 * \param image Image to be preprocessed
+		 * \param useCVHighGUI Optional parameter specifying if the results and the intermediate processing should be displayed using OpenCV HighGUI
+		 */
+		void preprocessImage(Mat& image, bool useCVHighGUI = true);
+
+
+		/*!
+		 * \brief Applies histogram equalization to the specified image
+		 * \param image Image to equalize
+		 * \param useCLAHE If true, uses the contrast limited adaptive histogram equalization (CLAHE)
+		 * \param useCVHighGUI Optional parameter specifying if the results and the intermediate processing should be displayed using OpenCV HighGUI
+		 * \return 
+		 */
+		void histogramEqualization(Mat& image, bool useCLAHE = true, bool useCVHighGUI = true);		
+
+
+		/*!
+		 * \brief Identifies traffic sign position by using color segmentation, and reduces noise by using morphological operators (opening or closing)
+		 * \param image Image to segment
+		 * \param useCVHighGUI Optional parameter specifying if the results and the intermediate processing should be displayed using OpenCV HighGUI
+		 * \return Binary image segmented
+		 */
 		Mat segmentImageByTrafficSignColor(Mat& preprocessedImage, bool useCVHighGUI = true);
+
+
+		/*!
+		 * \brief Detects speed limit signs by using Hough Circles transform and then extracts the speed limit ellipse for each circle detected
+		 * \param colorSegmentedImage Binary image processed with color segmentation to identify the position of traffic signs
+		 * \param preprocessedImage Preprocessed image where the Hough circles and traffic sign ellipsis (along with its bounding box), will be drawn, in case useCVHighGUI is true
+		 * \param outputRecognizedEllipsis Detected traffic sign ellipsis with their bounding box
+		 * \param useCVHighGUI Optional parameter specifying if the results and the intermediate processing should be displayed using OpenCV HighGUI
+		 */
 		void recognizeTrafficSignsEllipsis(Mat& colorSegmentedImage, Mat& preprocessedImage, vector< pair<Rect, RotatedRect> >& outputRecognizedEllipsis, bool useCVHighGUI = true);
+
+
+		/*!
+		 * \brief Filters the detected houghCircles by grouping then in clusters
+		 * 
+		 * Each cluster is formed by circles which have their center inside of another circle.
+		 * After creating the clusters, one circle for each cluster is computed based on the mean of their radius and their positions
+		 * \param houghCircles Detected hough circles
+		 * \param outputHoughCirclesFiltered Hough circles filtered
+		 */
 		void filterRecognizedTrafficSignCircles(const vector<Vec3f>& houghCircles, vector<Vec3f>& outputHoughCirclesFiltered);
+
+
+		/*!
+		 * \brief Flattens each circle cluster using the mean for its elements position and radius
+		 * \param houghCirclesClusters Clusters to be flatten
+		 * \param outputHoughCirclesFiltered Clusters flattened
+		 */
 		void flatClustersByMeanCenter(vector< vector<Vec3f> > &houghCirclesClusters, vector<Vec3f> &outputHoughCirclesFiltered);
-		void flatClustersByMedianCenter(vector< vector<Vec3f> > &houghCirclesClusters, vector<Vec3f> &outputHoughCirclesFiltered);
-		void flatClustersByMaxRadius(vector< vector<Vec3f> > &houghCirclesClusters, vector<Vec3f> &outputHoughCirclesFiltered);
-		bool aggregateCircleIntoClusters(vector< vector<Vec3f> >& houghCirclesClusters, const Vec3f& centerToAdd);
-		void retrieveEllipsisFromHoughCircles(const Mat& colorSegmentedImage, const vector<Vec3f>& houghCirclesFiltered, vector<pair<Rect, RotatedRect> >& outputTrafficSignEllipsis, bool useCVHighGUI = true);
 		
+		
+		/*!
+		 * \brief Flattens each circle cluster using the circle with the median y position
+		 * \param houghCirclesClusters Clusters to be flatten
+		 * \param outputHoughCirclesFiltered Clusters flattened
+		 */
+		void flatClustersByMedianCenter(vector< vector<Vec3f> > &houghCirclesClusters, vector<Vec3f> &outputHoughCirclesFiltered);
+
+
+		/*!
+		 * \brief Flattens each circle cluster using the circle with the maximum radius
+		 * \param houghCirclesClusters Clusters to be flatten
+		 * \param outputHoughCirclesFiltered Clusters flattened
+		 */
+		void flatClustersByMaxRadius(vector< vector<Vec3f> > &houghCirclesClusters, vector<Vec3f> &outputHoughCirclesFiltered);
+
+
+		/*!
+		 * \brief Tries to aggregate the new circle with the provided cluster
+		 * \param circle to be aggregated
+		 * \return true if circle center is inside any of the cluster circles (and as such, was aggregated with the cluster)
+		 */
+		bool aggregateCircleIntoClusters(vector< vector<Vec3f> >& houghCirclesClusters, const Vec3f& centerToAdd);
+
+
+		/*!
+		 * \brief Retrieves the Hough Circles corresponding ellipsis, along with their bounding rectangles
+		 * \param colorSegmentedImage Color segmented binary image with speed limit signs
+		 * \param preprocessedImage Image where ellipsis and their bounding rectangles will be drawn if useCVHighGUI is true
+		 * \param houghCirclesFiltered Hough circles used to find the speed limit sign ellipsis
+		 * \param outputTrafficSignEllipsis Detected ellipsis for the speed limit signs
+		 * \param useCVHighGUI Optional parameter specifying if the results and the intermediate processing should be displayed using OpenCV HighGUI
+		 */
+		void retrieveEllipsisFromHoughCircles(const Mat& colorSegmentedImage, Mat& preprocessedImage, const vector<Vec3f>& houghCirclesFiltered, vector<pair<Rect, RotatedRect> >& outputTrafficSignEllipsis, bool useCVHighGUI = true);
+		
+
+		/*!
+		 * \brief Detects digits inside each ellipse roi in the preprocessed image
+		 * \param preprocessedImage Image were the digits are going to be searched
+		 * \param trafficSignEllipsis Ellipsis stating the regions of interest in the preprocessedImage were the digits might be
+		 * \param useCVHighGUI Optional parameter specifying if the results and the intermediate processing should be displayed using OpenCV HighGUI
+		 * \return All speed limit numbers detected in the trafficSignEllipsis regions of interest
+		 */
 		vector<int> segmentImageByTrafficSignText(Mat& preprocessedImage, vector< pair<Rect, RotatedRect> >& trafficSignEllipsis, bool useCVHighGUI = true);
+
+
+		/*!
+		 * \brief Detects the speed limit sign number in the textColorSegmentation delimited by the ellipseBoundingRect roi 
+		 * \param preprocessedImage Image were the digits contours and bounding rectangles are going to be drawn in case useCVHighGUI is true
+		 * \param textColorSegmentation Color segmented binary image, with the regions that might be numbers
+		 * \param ellipseBoundingRect Ellipse stating the region of interest were the speed limit sign is 
+		 * \param useCVHighGUI Optional parameter specifying if the results and the intermediate processing should be displayed using OpenCV HighGUI
+		 * \param currentSignBeingProcessed Auxiliary parameter to allow the creation of different window names for each digit (in case feature detection is used)
+		 * \return Speed limit number detected or -1 in case of no valid number
+		 */
 		int recognizeTrafficSignText(Mat& preprocessedImage, Mat& textColorSegmentation, const Rect& ellipseBoundingRect, bool useCVHighGUI = true, size_t currentSignBeingProcessed = 0);
-		int recognizeDigit(Mat& textColorSegmentationDigitROI, Mat& feacturePointsGoodMatches, bool useSkeletonization = false, int numberRecognitionMethod = DIGIT_RECOGNITION_FEATURE_DETECTION, bool useCVHighGUI = true);			
+
+
+		/*!
+		 * \brief Recognizes a digit in the textColorSegmentationDigitROI using one of the possible methods (template matching, feature detection or using the tesseract library)
+		 * \param textColorSegmentationDigitROI Binary region of interest were there might be a digit
+		 * \param feacturePointsGoodMatches If useCVHighGUI is true and the recognition method is DIGIT_RECOGNITION_FEATURE_DETECTION, then this image will contain the good matches between the image digit and the template digit
+		 * \param useSkeletonization Flag to indicate to use skeletonization of the digits (if false, it will use erode instead)
+		 * \param numberRecognitionMethod Method to use in the digit recognition process (can be DIGIT_RECOGNITION_TEMPLATE_MATHING, DIGIT_RECOGNITION_FEATURE_DETECTION, DIGIT_RECOGNITION_TESSERACT)
+		 * \param useCVHighGUI Optional parameter specifying if the results and the intermediate processing should be displayed using OpenCV HighGUI
+		 * \return Digit recognized or -1 if none was detected
+		 */
+		int recognizeDigit(Mat& textColorSegmentationDigitROI, Mat& feacturePointsGoodMatches, bool useSkeletonization = false, int numberRecognitionMethod = DIGIT_RECOGNITION_FEATURE_DETECTION, bool useCVHighGUI = true);
+
+
+		/*!
+		 * \brief Computes the probability of the digitImageTemplate is present in the textColorSegmentationDigitROI
+		 * \param textColorSegmentationDigitROI Image were the digit might be
+		 * \param digitImageTemplate Template of the digit that is going to be searched
+		 * \param feacturePointsGoodMatches Image were the good matches between the textColorSegmentationDigitROI and digitImageTemplate will be drawn if useCVHighGUI is true
+		 * \param useCVHighGUI Optional parameter specifying if the results and the intermediate processing should be displayed using OpenCV HighGUI
+		 * \return Probability of the digitImageTemplate is present in the textColorSegmentationDigitROI
+		 */
 		float recognizeDigitWithFeatureMatching(Mat& textColorSegmentationDigitROI, Mat& digitImageTemplate, Mat& feacturePointsGoodMatches, bool useCVHighGUI = true);		
+		
+		
+		/*!
+		 * \brief Performs the skeletonization of the image using the specified kernel
+		 * \param image Image to be processed
+		 * \param kernel Kernel to use
+		 * \param numberIterations Number of iterations to run the skeletonization
+		 * \return 
+		 */
 		Mat textSkeletonization(Mat& image, Mat& kernel, int numberIterations);
+
+		
+		 /// Thins the templates to match the degree of skeletonization that will be applied to the image digits		 		 		 
 		void skeletonizeTemplates();
 
+
 #ifdef USE_TESSERACT
+		/*!
+		 * \brief Uses Tesseract library to recognize digits
+		 * \param textColorSegmentationDigitROI Image with numbers to recognize
+		 * \return Number recognized or -1 if none was found
+		 */
 		int recognizeDigitWithTesseract(Mat& textColorSegmentationDigitROI);
 #endif
 
+		/*!
+		 * \brief Processes the image to reflect any internal parameter change		 
+		 * \return True if processing finished successfully
+		 */
 		bool updateImage();
 		
+
+		/*!
+		 * \brief Processes a video from a file, analyzing the presence of speed limit signs
+		 * \param path Full path to video
+		 * \param useCVHighGUI Optional parameter specifying if the results and the intermediate processing should be displayed using OpenCV HighGUI
+		 * \return True if processing finished successfully
+		 */
 		bool processVideo(string path, bool useCVHighGUI = true);
+
+		/*!
+		 * \brief Processes a video from a camera, analyzing the presence of speed limit signs
+		 * \param cameraDeviceNumber Camera device number
+		 * \param useCVHighGUI Optional parameter specifying if the results and the intermediate processing should be displayed using OpenCV HighGUI
+		 * \return True if processing finished successfully
+		 */
 		bool processVideo(int cameraDeviceNumber, bool useCVHighGUI = true);
+
+
+		/*!
+		 * \brief Processes a video from a VideoCapture source, analyzing the presence of speed limit signs
+		 * \param useCVHighGUI Optional parameter specifying if the results and the intermediate processing should be displayed using OpenCV HighGUI
+		 * \return True if processing finished successfully
+		 */
 		bool processVideo(VideoCapture videoCapture, bool useCVHighGUI = true);
 		
+
+		/*!
+		 * \brief Draws a label in image in the top part of the signBoundingRect
+		 * \param text Text to draw
+		 * \param image Image where the text is going to be drawn
+		 * \param signBoundingRect Rectangle with the region of interest were the text is going to be positioned inside the image
+		 */
 		void drawTrafficSignLabel(string text, Mat& image, const Rect& signBoundingRect);
 
+		
+		/// brief Setups the HighGUI window were the original image is going to be drawn		 		 
 		void setupMainWindow();
-		void setupResultsWindows(bool optionsOneWindow = false);
-		bool outputResults();		
 
+
+		/*!
+		 * \brief Setups the windows were the results will be presented
+		 * \param optionsOneWindow Flag to indicate to group the trackbars in one window		 
+		 */
+		void setupResultsWindows(bool optionsOneWindow = false);			
+
+
+		/*!
+		 * \brief Adds a OpenCV HighGUI window, resized, aligned and positioned with the specified parameters
+		 * \param column Window column where the window will be moved
+		 * \param row Window row where the window will be moved
+		 * \param windowName Window name
+		 * \param numberColumns Number of window columns in which the screen is going to be divided
+		 * \param numberRows Number of window rows in which the screen is going to be divided
+		 * \param xOffset X offset to add to the original position
+		 * \param yOffset Y offset to add to the original position
+		 * \param windowWidth Override the computed window width
+		 * \param windowHeight Override the computed window height
+		 * \param imageWidth Override the computed image width
+		 * \param imageHeight Override the computed image height
+		 * \return Pair with he (x, y) position and the (width, height) of the window added 
+		 */
 		pair< pair<int, int>, pair<int, int> > addHighGUIWindow(int column, int row, string windowName, int numberColumns = 4, int numberRows = 2, int xOffset = 0, int yOffset = 0, int windowWidth = -1, int windowHeight = -1, int imageWidth = -1, int imageHeight = -1);
+
+
+		/*!
+		 * \brief Adds an OpenCV HighGUI trackbar, resized, aligned and positioned with the specified parameters
+		 * \param windowName Window name
+		 * \param numberTrackBars Number of trackbars that are going to be added to the window (to properly move the window that is going to be added)
+		 * \param cumulativeTrackBarPosition Number of trackbars that are staked vertically in the windows above (to properly move the window that is going to be added)
+		 * \param trackBarWindowNumber Number of trackbar windows that are going to be above (to properly move the window that is going to be added)
+		 * \param xOffset Offset to adjust the x position
+		 * \param yOffset Offset to adjust the y position
+		 * \return Pair with he (x, y) position and the (width, height) of the window added 
+		 */
 		pair< pair<int, int>, pair<int, int> > addHighGUITrackBarWindow(string windowName, int numberTrackBars, int cumulativeTrackBarPosition, int trackBarWindowNumber, int xOffset = 0, int yOffset = 0);
 
 	private:
@@ -257,3 +488,4 @@ class ImageAnalysis {
 		int houghCirclesMinRadius;
 		int houghCirclesMaxRadius;
 };
+// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>  </Image analysis>  <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
