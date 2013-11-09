@@ -420,6 +420,18 @@ class ImageAnalysis {
 		 */
 		pair< pair<int, int>, pair<int, int> > addHighGUITrackBarWindow(string windowName, int numberTrackBars, int cumulativeTrackBarPosition, int trackBarWindowNumber, int xOffset = 0, int yOffset = 0);
 
+
+		// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>  <Gets / sets>  <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<		
+		int ScreenWidth() const;
+		void ScreenWidth(int val);
+
+		int ScreenHeight() const;
+		void ScreenHeight(int val);	
+
+		bool OptionsOneWindow() const;
+		void OptionsOneWindow(bool val);
+		// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>  </Gets / sets>  <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
 	private:
 		vector<int> detectedSigns;
 		vector<Mat> digitsImagesTemplates;
@@ -429,9 +441,10 @@ class ImageAnalysis {
 		Mat processedImage;
 		bool useCVHiGUI;
 		bool windowsInitialized;
-
+		bool optionsOneWindow;
+		
 		int frameRate;
-		int screenWidth;
+		int screenWidth;		
 		int screenHeight;
 
 		int claehClipLimit;

@@ -3,7 +3,7 @@
 
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>  <Image analysis>  <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 ImageAnalysis::ImageAnalysis() :
-	useCVHiGUI(true), windowsInitialized(false),
+	useCVHiGUI(true), windowsInitialized(false), optionsOneWindow(false),
 	frameRate(30), screenWidth(1920), screenHeight(1080),
 	claehClipLimit(2), claehTileXSize(2), claehTileYSize(2),
 	bilateralFilterDistance(9), bilateralFilterSigmaColor(50), bilateralFilterSigmaSpace(10),
@@ -12,11 +12,11 @@ ImageAnalysis::ImageAnalysis() :
 	signalColorSegmentationLowerSaturation(112), signalColorSegmentationUpperSaturation(255),
 	signalColorSegmentationLowerValue(32), signalColorSegmentationUpperValue(255),
 	signalColorSegmentationMorphType(0), signalColorSegmentationMorphKernelSizeX(2), signalColorSegmentationMorphKernelSizeY(2), signalColorSegmentationMorphIterations(1),
-	textColorSegmentationLowerHue(20), textColorSegmentationUpperHue(140),
+	textColorSegmentationLowerHue(0), textColorSegmentationUpperHue(140),
 	textColorSegmentationLowerSaturation(0), textColorSegmentationUpperSaturation(255),
 	textColorSegmentationLowerValue(0), textColorSegmentationUpperValue(147),
 	textColorSegmentationMorphType(1), textColorSegmentationMorphKernelSizeX(1), textColorSegmentationMorphKernelSizeY(1), textColorSegmentationMorphIterations(1),
-	textMinMatchPercentage(40), digitRecognitionMethod(DIGIT_RECOGNITION_FEATURE_DETECTION),
+	textMinMatchPercentage(15), digitRecognitionMethod(DIGIT_RECOGNITION_FEATURE_DETECTION),
 	textFeatureDetectionMaxDistancePercentageKeypoint(10), textTemplateMatchMethod(CV_TM_CCORR_NORMED),
 	textSkeletonKernelPercentageX(6), textSkeletonKernelPercentageY(6), textSkeletonIterations(1), useSkeletonizationOnDigits(false),
 	cannyLowerHysteresisThreshold(100), cannyHigherHysteresisThreshold(200), cannySobelOperatorKernelSize(3),
@@ -95,7 +95,7 @@ bool ImageAnalysis::processImage(Mat& image, bool useCVHighGUI) {
 	if (useCVHighGUI) {		
 		if (!windowsInitialized) {
 			setupMainWindow();
-			setupResultsWindows();
+			setupResultsWindows(optionsOneWindow);
 			windowsInitialized = true;
 		}				
 	}
@@ -1183,3 +1183,16 @@ pair< pair<int, int>, pair<int, int> > ImageAnalysis::addHighGUITrackBarWindow(s
 	return pair< pair<int, int>, pair<int, int> >(pair<int, int>(x, y), pair<int, int>(width, height));
 }
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>  </OpenCV HighGUI>  <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+
+
+// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>  <Gets / sets>  <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+int ImageAnalysis::ScreenWidth() const { return screenWidth; }
+void ImageAnalysis::ScreenWidth(int val) { screenWidth = val; }
+
+int ImageAnalysis::ScreenHeight() const { return screenHeight; }
+void ImageAnalysis::ScreenHeight(int val) { screenHeight = val; }
+
+bool ImageAnalysis::OptionsOneWindow() const { return optionsOneWindow; }
+void ImageAnalysis::OptionsOneWindow(bool val) { optionsOneWindow = val; }
+// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>  </Gets / sets>  <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<

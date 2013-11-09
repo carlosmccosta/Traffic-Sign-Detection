@@ -13,10 +13,18 @@ void CLI::startInteractiveCLI() {
 	int userOption = 0;
 	string filename = "";
 	int cameraDeviceNumber = 0;
+	
+	ConsoleInput::getInstance()->clearConsoleScreen();
+	showConsoleHeader();
+	
+	int screenWidth = ConsoleInput::getInstance()->getIntCin("  >> Screen width (used to arrange windows): ", "  => Width >= 100 !!!\n", 100);
+	int screenHeight = ConsoleInput::getInstance()->getIntCin("  >> Screen height (used to arrange windows): ", "  => Width >= 100 !!!\n", 100);
+	bool optionsOneWindow = ConsoleInput::getInstance()->getYesNoCin("  >> Use only one window for options trackbars? (Y/N): ");
 
 	do {
 		ConsoleInput::getInstance()->clearConsoleScreen();
 		showConsoleHeader();
+		
 		userOption = getUserOption();
 
 		if (userOption > 0 && userOption < 3) {
@@ -35,32 +43,37 @@ void CLI::startInteractiveCLI() {
 			cameraDeviceNumber = ConsoleInput::getInstance()->getIntCin("  >> Insert the camera device number to use (default: 0): ", "  => Camera device number must be >= 0 !!!\n", 0);
 		}
 
-		ImageAnalysis imageAnalysis;
-		switch (userOption) {
-			case 1: {
-				if (!imageAnalysis.processImage(filename)) {
-					cerr << "  => Failed to load image " << filename << "!" << endl;
+		try {
+			ImageAnalysis imageAnalysis;
+			imageAnalysis.ScreenWidth(screenWidth);
+			imageAnalysis.ScreenHeight(screenHeight);
+			imageAnalysis.OptionsOneWindow(optionsOneWindow);
+			switch (userOption) {
+				case 1: {
+					if (!imageAnalysis.processImage(filename)) {
+						cerr << "  => Failed to load image " << filename << "!" << endl;
+					}
+					break;
 				}
-				break;
-			}
 
-			case 2: {
-				if (!imageAnalysis.processVideo(filename)) {
-					cerr << "  => Failed to load video " << filename << "!" << endl;
+				case 2: {
+					if (!imageAnalysis.processVideo(filename)) {
+						cerr << "  => Failed to load video " << filename << "!" << endl;
+					}
+					break;
 				}
-				break;
-			}
 
-			case 3: {				
-				if (!imageAnalysis.processVideo(cameraDeviceNumber)) {
-					cerr << "  => Failed to open camera " << cameraDeviceNumber << "!" << endl;
+				case 3: {				
+					if (!imageAnalysis.processVideo(cameraDeviceNumber)) {
+						cerr << "  => Failed to open camera " << cameraDeviceNumber << "!" << endl;
+					}
+					break;
 				}
-				break;
-			}
 
-			default:
-				break;
-		}
+				default:
+					break;
+			}
+		} catch(...) {}
 
 		if (userOption != 0) {
 			cout << "\n\n" << endl;
